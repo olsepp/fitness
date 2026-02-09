@@ -12,6 +12,7 @@
 	console.log('Key exists:', !!PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY);
 	console.log('Key length:', PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY?.length);
 	console.log('=========================');
+	console.log('=========================');
 
 
 	let { data } = $props();
