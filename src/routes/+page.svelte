@@ -3,18 +3,6 @@
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 	import { SvelteDate } from 'svelte/reactivity';
 
-
-	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY } from '$env/static/public';
-
-	// This will run in the browser
-	console.log('=== ENVIRONMENT CHECK ===');
-	console.log('URL:', PUBLIC_SUPABASE_URL);
-	console.log('Key exists:', !!PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY);
-	console.log('Key length:', PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY?.length);
-	console.log('=========================');
-	console.log('=========================');
-
-
 	let { data } = $props();
 	let workouts: WorkoutSession[] = $derived(data.workouts || []);
 	let errorMessage = $state<string | null>(null);
