@@ -1,7 +1,18 @@
 <script lang="ts">
 	import type { WorkoutSession } from '$lib/types';
-	import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
+	import { SvelteDate } from 'svelte/reactivity';
+
+
+	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY } from '$env/static/public';
+
+	// This will run in the browser
+	console.log('=== ENVIRONMENT CHECK ===');
+	console.log('URL:', PUBLIC_SUPABASE_URL);
+	console.log('Key exists:', !!PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY);
+	console.log('Key length:', PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY?.length);
+	console.log('=========================');
+
 
 	let { data } = $props();
 	let workouts: WorkoutSession[] = $derived(data.workouts || []);
@@ -15,7 +26,7 @@
 	// This week's workouts
 	let thisWeekWorkouts = $derived.by(() => {
 		const now = new Date();
-		const weekStart = new Date(now);
+		const weekStart = new SvelteDate(now);
 		weekStart.setDate(now.getDate() - now.getDay());
 		weekStart.setHours(0, 0, 0, 0);
 		return workouts.filter((w) => new Date(w.date) >= weekStart);
