@@ -14,6 +14,7 @@ export async function requireUser(supabase: SupabaseClient): Promise<User> {
 	console.log('[requireUser] Supabase.auth has getUser:', !!supabase?.auth?.getUser);
 
 	console.log('[requireUser] Calling supabase.auth.getUser()...');
+	console.log('[requireUser] Calling supabase.auth.getUser()...');
 
 	try {
 		const {
