@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { untrack } from 'svelte';
+	import { enhance } from '$app/forms';
 	import { supabase } from '$lib/supabaseClient';
 	import { createWorkoutSession } from '$lib/api/workoutSessions';
-	import { createExercise } from '$lib/api/exercises';
 	import { addWorkoutExercise } from '$lib/api/workoutExercises';
 	import { addWorkoutSet } from '$lib/api/workoutSets';
 	import type { WorkoutType, Exercise } from '$lib/types';
@@ -44,6 +44,7 @@
 	let isCreatingExercise = $state(false);
 	let isSubmitting = $state(false);
 	let errorMessage = $state<string | null>(null);
+	let lastCreatedExerciseId = $state<string | null>(null);
 
 	interface NewWorkoutExercise {
 		exercise: Exercise;
@@ -98,27 +99,31 @@
 		searchQuery = '';
 	}
 
-	async function handleCreateNewExercise() {
-		const trimmedName = newExerciseName.trim();
-		if (!trimmedName) {
-			errorMessage = 'Exercise name is required.';
-			return;
-		}
-
+	const createExerciseEnhance = () => {
 		isCreatingExercise = true;
 		errorMessage = null;
-		try {
-			const newExercise = await createExercise(supabase, { name: trimmedName, notes: null });
-			availableExercises = [newExercise, ...availableExercises];
-			// Automatically add the new exercise to the workout
-			await handleAddExercise(newExercise);
-			newExerciseName = '';
-		} catch (error) {
-			errorMessage = error instanceof Error ? error.message : 'Failed to create exercise.';
-		} finally {
+		return async ({ result }) => {
 			isCreatingExercise = false;
-		}
-	}
+			if (result.type === 'success' && result.data?.exercise) {
+				const created = result.data.exercise as Exercise;
+				if (!availableExercises.some((exercise) => exercise.id === created.id)) {
+					availableExercises = [created, ...availableExercises];
+				}
+				if (created.id !== lastCreatedExerciseId) {
+					await handleAddExercise(created);
+					lastCreatedExerciseId = created.id;
+				}
+				newExerciseName = '';
+				return;
+			}
+			if (result.type === 'failure') {
+				errorMessage = result.data?.error ?? 'Failed to create exercise.';
+				if (result.data?.values?.name) {
+					newExerciseName = result.data.values.name;
+				}
+			}
+		};
+	};
 
 	function handleRemoveExercise(index: number) {
 		selectedExercises = selectedExercises.filter((_, i) => i !== index);
@@ -314,23 +319,35 @@
 					<!-- Or create new -->
 					<div class="border-t border-pink-200 pt-3">
 						<p class="mb-2 text-xs text-pink-500">Or create a new exercise:</p>
-						<div class="flex gap-2">
-							<input
-								type="text"
-								bind:value={newExerciseName}
-								placeholder="New exercise name..."
-								class="input flex-1 text-sm"
-							/>
-							<button
-								type="button"
-								onclick={handleCreateNewExercise}
-								disabled={isCreatingExercise}
-								class="btn-secondary text-sm"
-							>
-								{isCreatingExercise ? 'Creating...' : 'Create'}
-							</button>
-						</div>
-					</div>
+				<form
+					class="flex gap-2"
+					method="POST"
+					action="?/create-exercise"
+					use:enhance={createExerciseEnhance}
+					onsubmit={(event) => {
+						if (!newExerciseName.trim()) {
+							event.preventDefault();
+							errorMessage = 'Exercise name is required.';
+						}
+					}}
+				>
+					<input
+						type="text"
+						name="name"
+						bind:value={newExerciseName}
+						placeholder="New exercise name..."
+						class="input flex-1 text-sm"
+					/>
+					<input type="hidden" name="notes" value="" />
+					<button
+						type="submit"
+						disabled={isCreatingExercise}
+						class="btn-secondary text-sm"
+					>
+						{isCreatingExercise ? 'Creating...' : 'Create'}
+					</button>
+				</form>
+			</div>
 
 					<button
 						type="button"

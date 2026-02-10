@@ -1,3 +1,4 @@
+import { fail, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import type { WorkoutType, Exercise } from '$lib/types';
 
@@ -30,4 +31,47 @@ export const load: PageServerLoad = async ({ locals: { supabase, getSession } })
 		workoutTypes: (typesResult.data ?? []) as WorkoutType[],
 		exercises: (exercisesResult.data ?? []) as Exercise[],
 	};
+};
+
+export const actions: Actions = {
+	'create-exercise': async ({ request, locals: { supabase, getSession } }) => {
+		const session = await getSession();
+		const formData = await request.formData();
+		const name = (formData.get('name') as string | null) ?? '';
+		const notes = (formData.get('notes') as string | null) ?? '';
+
+		if (!session) {
+			return fail(401, {
+				error: 'Not authenticated',
+				values: { name, notes }
+			});
+		}
+
+		if (!name.trim()) {
+			return fail(400, {
+				error: 'Exercise name is required',
+				values: { name, notes }
+			});
+		}
+
+		const { data, error } = await supabase
+			.from('exercise')
+			.insert({
+				name: name.trim(),
+				notes: notes.trim() || null,
+				user_id: session.user.id
+			})
+			.select('id,user_id,name,notes,created_at')
+			.single();
+
+		if (error) {
+			console.error('Error creating exercise:', error);
+			return fail(500, {
+				error: error.message,
+				values: { name, notes }
+			});
+		}
+
+		return { success: true, exercise: data };
+	}
 };
