@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { untrack } from 'svelte';
+	import { supabase } from '$lib/supabaseClient';
 	import { createWorkoutSession } from '$lib/api/workoutSessions';
 	import { createExercise } from '$lib/api/exercises';
 	import { addWorkoutExercise } from '$lib/api/workoutExercises';
@@ -107,7 +108,7 @@
 		isCreatingExercise = true;
 		errorMessage = null;
 		try {
-			const newExercise = await createExercise({ name: trimmedName, notes: null });
+			const newExercise = await createExercise(supabase, { name: trimmedName, notes: null });
 			availableExercises = [newExercise, ...availableExercises];
 			// Automatically add the new exercise to the workout
 			await handleAddExercise(newExercise);
@@ -161,7 +162,7 @@
 
 		try {
 			// Create the workout session
-			const session = await createWorkoutSession({
+			const session = await createWorkoutSession(supabase, {
 				workout_type_id: workoutTypeId,
 				date: workoutDate,
 				notes: notes.trim() || null,
@@ -169,7 +170,7 @@
 
 			// Add exercises and sets
 			for (const exercise of selectedExercises) {
-				const workoutExercise = await addWorkoutExercise({
+				const workoutExercise = await addWorkoutExercise(supabase, {
 					workout_session_id: session.id,
 					exercise_id: exercise.exerciseId,
 					name_snapshot: exercise.nameSnapshot,
@@ -179,7 +180,7 @@
 
 				// Add sets for this exercise
 				for (const set of exercise.sets) {
-					await addWorkoutSet({
+					await addWorkoutSet(supabase, {
 						workout_exercise_id: workoutExercise.id,
 						reps: set.reps,
 						weight: set.weight,

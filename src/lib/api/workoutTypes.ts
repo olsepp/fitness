@@ -1,7 +1,7 @@
-import { supabase } from '$lib/supabaseClient';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { WorkoutType } from '$lib/types';
 
-export const listWorkoutTypes = async (): Promise<WorkoutType[]> => {
+export const listWorkoutTypes = async (supabase: SupabaseClient): Promise<WorkoutType[]> => {
 	const { data, error } = await supabase
 		.from('workout_type')
 		.select('id,key,name,icon')

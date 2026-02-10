@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
+	import { supabase } from '$lib/supabaseClient';
 	import { updateWorkoutSession } from '$lib/api/workoutSessions';
 	import { addWorkoutExercise, deleteWorkoutExercise, toggleExerciseCompletion } from '$lib/api/workoutExercises';
 	import { addWorkoutSet, updateWorkoutSet, deleteWorkoutSet } from '$lib/api/workoutSets';
@@ -70,7 +71,7 @@
 		const orderIndex = workout.workout_exercise?.length || 0;
 
 		try {
-			const newWorkoutExercise = await addWorkoutExercise({
+			const newWorkoutExercise = await addWorkoutExercise(supabase, {
 				workout_session_id: workout.id,
 				exercise_id: exercise.id,
 				name_snapshot: exercise.name,
@@ -103,7 +104,7 @@
 		try {
 			// Import createExercise dynamically to avoid issues
 			const { createExercise } = await import('$lib/api/exercises');
-			const newExercise = await createExercise({ name: trimmedName, notes: null });
+			const newExercise = await createExercise(supabase, { name: trimmedName, notes: null });
 			availableExercises = [newExercise, ...availableExercises];
 			await handleAddExercise(newExercise);
 			newExerciseName = '';
@@ -128,7 +129,7 @@
 		const orderIndex = exercise.workout_set?.length || 0;
 
 		try {
-			const newSet = await addWorkoutSet({
+			const newSet = await addWorkoutSet(supabase, {
 				workout_exercise_id: exerciseId,
 				reps: 10,
 				weight: null,
@@ -151,7 +152,7 @@
 
 	async function handleUpdateSet(set: WorkoutSet) {
 		try {
-			await updateWorkoutSet(set.id, {
+			await updateWorkoutSet(supabase, set.id, {
 				reps: set.reps,
 				weight: set.weight,
 				order_index: set.order_index,
@@ -172,7 +173,7 @@
 		if (!workout) return;
 
 		try {
-			const updated = await updateWorkoutSession(workout.id, {
+			const updated = await updateWorkoutSession(supabase, workout.id, {
 				is_completed: !workout.is_completed,
 			});
 			workout = { ...workout, is_completed: updated.is_completed };
@@ -186,7 +187,7 @@
 
 		const newState = !exercise.is_completed;
 		try {
-			await toggleExerciseCompletion(exercise.id, newState);
+			await toggleExerciseCompletion(supabase, exercise.id, newState);
 			// Update local state
 			workout = {
 				...workout,
@@ -216,14 +217,14 @@
 		try {
 			// First, delete removed exercises and sets from database
 			for (const exerciseId of removedExerciseIds) {
-				await deleteWorkoutExercise(exerciseId);
+				await deleteWorkoutExercise(supabase, exerciseId);
 			}
 			for (const setId of removedSetIds) {
-				await deleteWorkoutSet(setId);
+				await deleteWorkoutSet(supabase, setId);
 			}
 
 			// Then save workout details
-			await updateWorkoutSession(workout.id, {
+			await updateWorkoutSession(supabase, workout.id, {
 				workout_type_id: workoutTypeId,
 				date: workoutDate,
 				notes: notes.trim() || null,

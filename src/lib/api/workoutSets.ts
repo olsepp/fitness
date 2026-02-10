@@ -1,4 +1,4 @@
-import { supabase } from '$lib/supabaseClient';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { WorkoutSet } from '$lib/types';
 import { requireUser } from '$lib/auth';
 
@@ -16,8 +16,11 @@ type WorkoutSetUpdate = {
 };
 
 // Helper to verify user owns the workout exercise (and thus the workout session)
-async function verifyExerciseOwnership(workoutExerciseId: string): Promise<boolean> {
-	const user = await requireUser();
+async function verifyExerciseOwnership(
+	supabase: SupabaseClient,
+	workoutExerciseId: string
+): Promise<boolean> {
+	const user = await requireUser(supabase);
 
 	// First get the exercise to find its workout_session_id
 	const { data: exercise, error: exerciseError } = await supabase
@@ -40,8 +43,8 @@ async function verifyExerciseOwnership(workoutExerciseId: string): Promise<boole
 }
 
 // Helper to verify user owns the workout set
-async function verifySetOwnership(setId: string): Promise<boolean> {
-	const user = await requireUser();
+async function verifySetOwnership(supabase: SupabaseClient, setId: string): Promise<boolean> {
+	const user = await requireUser(supabase);
 
 	// First get the set to find its workout_exercise_id
 	const { data: set, error: setError } = await supabase
@@ -72,11 +75,14 @@ async function verifySetOwnership(setId: string): Promise<boolean> {
 	return !sessionError && !!session;
 }
 
-export const addWorkoutSet = async (payload: WorkoutSetInsert): Promise<WorkoutSet> => {
-	const user = await requireUser();
+export const addWorkoutSet = async (
+	supabase: SupabaseClient,
+	payload: WorkoutSetInsert
+): Promise<WorkoutSet> => {
+	const user = await requireUser(supabase);
 
 	// Verify user owns the workout exercise
-	const isOwner = await verifyExerciseOwnership(payload.workout_exercise_id);
+	const isOwner = await verifyExerciseOwnership(supabase, payload.workout_exercise_id);
 	if (!isOwner) {
 		throw new Error('Not authorized to add sets to this exercise');
 	}
@@ -100,13 +106,14 @@ export const addWorkoutSet = async (payload: WorkoutSetInsert): Promise<WorkoutS
 };
 
 export const updateWorkoutSet = async (
+	supabase: SupabaseClient,
 	id: string,
-	payload: WorkoutSetUpdate,
+	payload: WorkoutSetUpdate
 ): Promise<WorkoutSet> => {
-	const user = await requireUser();
+	const user = await requireUser(supabase);
 
 	// Verify user owns this set
-	const isOwner = await verifySetOwnership(id);
+	const isOwner = await verifySetOwnership(supabase, id);
 	if (!isOwner) {
 		throw new Error('Not authorized to update this set');
 	}
@@ -129,19 +136,16 @@ export const updateWorkoutSet = async (
 	return data;
 };
 
-export const deleteWorkoutSet = async (id: string): Promise<void> => {
-	const user = await requireUser();
+export const deleteWorkoutSet = async (supabase: SupabaseClient, id: string): Promise<void> => {
+	const user = await requireUser(supabase);
 
 	// Verify user owns this set
-	const isOwner = await verifySetOwnership(id);
+	const isOwner = await verifySetOwnership(supabase, id);
 	if (!isOwner) {
 		throw new Error('Not authorized to delete this set');
 	}
 
-	const { error } = await supabase
-		.from('workout_set')
-		.delete()
-		.eq('id', id);
+	const { error } = await supabase.from('workout_set').delete().eq('id', id);
 
 	if (error) {
 		throw error;

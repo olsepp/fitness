@@ -1,4 +1,4 @@
-import { supabase } from '$lib/supabaseClient';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { WorkoutExercise } from '$lib/types';
 import { requireUser } from '$lib/auth';
 
@@ -30,8 +30,11 @@ const exerciseSelect = [
 ].join(',');
 
 // Helper to verify user owns the workout session
-async function verifyWorkoutOwnership(workoutSessionId: string): Promise<boolean> {
-	const user = await requireUser();
+async function verifyWorkoutOwnership(
+	supabase: SupabaseClient,
+	workoutSessionId: string
+): Promise<boolean> {
+	const user = await requireUser(supabase);
 
 	const { data, error } = await supabase
 		.from('workout_session')
@@ -44,8 +47,8 @@ async function verifyWorkoutOwnership(workoutSessionId: string): Promise<boolean
 }
 
 // Helper to verify user owns the workout exercise
-async function verifyExerciseOwnership(exerciseId: string): Promise<boolean> {
-	const user = await requireUser();
+async function verifyExerciseOwnership(supabase: SupabaseClient, exerciseId: string): Promise<boolean> {
+	const user = await requireUser(supabase);
 
 	// First get the exercise to find its workout_session_id
 	const { data: exercise, error: exerciseError } = await supabase
@@ -68,12 +71,13 @@ async function verifyExerciseOwnership(exerciseId: string): Promise<boolean> {
 }
 
 export const addWorkoutExercise = async (
-	payload: WorkoutExerciseInsert,
+	supabase: SupabaseClient,
+	payload: WorkoutExerciseInsert
 ): Promise<WorkoutExercise> => {
-	const user = await requireUser();
+	const user = await requireUser(supabase);
 
 	// Verify user owns the workout session
-	const isOwner = await verifyWorkoutOwnership(payload.workout_session_id);
+	const isOwner = await verifyWorkoutOwnership(supabase, payload.workout_session_id);
 	if (!isOwner) {
 		throw new Error('Not authorized to add exercises to this workout');
 	}
@@ -99,13 +103,14 @@ export const addWorkoutExercise = async (
 };
 
 export const updateWorkoutExercise = async (
+	supabase: SupabaseClient,
 	id: string,
-	payload: WorkoutExerciseUpdate,
+	payload: WorkoutExerciseUpdate
 ): Promise<WorkoutExercise> => {
-	const user = await requireUser();
+	const user = await requireUser(supabase);
 
 	// Verify user owns this exercise
-	const isOwner = await verifyExerciseOwnership(id);
+	const isOwner = await verifyExerciseOwnership(supabase, id);
 	if (!isOwner) {
 		throw new Error('Not authorized to update this exercise');
 	}
@@ -129,19 +134,16 @@ export const updateWorkoutExercise = async (
 	return data as unknown as WorkoutExercise;
 };
 
-export const deleteWorkoutExercise = async (id: string): Promise<void> => {
-	const user = await requireUser();
+export const deleteWorkoutExercise = async (supabase: SupabaseClient, id: string): Promise<void> => {
+	const user = await requireUser(supabase);
 
 	// Verify user owns this exercise
-	const isOwner = await verifyExerciseOwnership(id);
+	const isOwner = await verifyExerciseOwnership(supabase, id);
 	if (!isOwner) {
 		throw new Error('Not authorized to delete this exercise');
 	}
 
-	const { error } = await supabase
-		.from('workout_exercise')
-		.delete()
-		.eq('id', id);
+	const { error } = await supabase.from('workout_exercise').delete().eq('id', id);
 
 	if (error) {
 		throw error;
@@ -149,8 +151,9 @@ export const deleteWorkoutExercise = async (id: string): Promise<void> => {
 };
 
 export const toggleExerciseCompletion = async (
+	supabase: SupabaseClient,
 	id: string,
 	isCompleted: boolean
 ): Promise<WorkoutExercise> => {
-	return updateWorkoutExercise(id, { is_completed: isCompleted });
+	return updateWorkoutExercise(supabase, id, { is_completed: isCompleted });
 };

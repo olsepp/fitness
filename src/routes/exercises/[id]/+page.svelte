@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { supabase } from '$lib/supabaseClient';
 	import { getExerciseById, updateExercise } from '$lib/api/exercises';
 	import type { Exercise } from '$lib/types';
 	import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
@@ -23,7 +24,7 @@
 		isLoading = true;
 		errorMessage = null;
 		try {
-			exercise = await getExerciseById(exerciseId);
+			exercise = await getExerciseById(supabase, exerciseId);
 			name = exercise.name;
 			notes = exercise.notes || '';
 		} catch (error) {
@@ -45,7 +46,7 @@
 		errorMessage = null;
 
 		try {
-			await updateExercise(exerciseId, {
+			await updateExercise(supabase, exerciseId, {
 				name: name.trim(),
 				notes: notes.trim() ? notes.trim() : null,
 			});

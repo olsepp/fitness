@@ -1,4 +1,4 @@
-import { supabase } from '$lib/supabaseClient';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Exercise } from '$lib/types';
 import { requireUser } from '$lib/auth';
 
@@ -12,8 +12,8 @@ type ExerciseUpdate = {
 	notes?: string | null;
 };
 
-export const listExercises = async (): Promise<Exercise[]> => {
-	const user = await requireUser();
+export const listExercises = async (supabase: SupabaseClient): Promise<Exercise[]> => {
+	const user = await requireUser(supabase);
 
 	const { data, error } = await supabase
 		.from('exercise')
@@ -28,8 +28,8 @@ export const listExercises = async (): Promise<Exercise[]> => {
 	return data ?? [];
 };
 
-export const getExerciseById = async (id: string): Promise<Exercise> => {
-	const user = await requireUser();
+export const getExerciseById = async (supabase: SupabaseClient, id: string): Promise<Exercise> => {
+	const user = await requireUser(supabase);
 
 	const { data, error } = await supabase
 		.from('exercise')
@@ -45,9 +45,12 @@ export const getExerciseById = async (id: string): Promise<Exercise> => {
 	return data;
 };
 
-export const createExercise = async (payload: ExerciseInsert): Promise<Exercise> => {
+export const createExercise = async (
+	supabase: SupabaseClient,
+	payload: ExerciseInsert
+): Promise<Exercise> => {
 	console.log('[createExercise] Starting...', payload);
-	const user = await requireUser();
+	const user = await requireUser(supabase);
 	console.log('[createExercise] User:', user?.id);
 
 	const { data, error } = await supabase
@@ -71,8 +74,12 @@ export const createExercise = async (payload: ExerciseInsert): Promise<Exercise>
 	return data;
 };
 
-export const updateExercise = async (id: string, payload: ExerciseUpdate): Promise<Exercise> => {
-	const user = await requireUser();
+export const updateExercise = async (
+	supabase: SupabaseClient,
+	id: string,
+	payload: ExerciseUpdate
+): Promise<Exercise> => {
+	const user = await requireUser(supabase);
 
 	const { data, error } = await supabase
 		.from('exercise')
@@ -92,8 +99,8 @@ export const updateExercise = async (id: string, payload: ExerciseUpdate): Promi
 	return data;
 };
 
-export const deleteExercise = async (id: string): Promise<void> => {
-	const user = await requireUser();
+export const deleteExercise = async (supabase: SupabaseClient, id: string): Promise<void> => {
+	const user = await requireUser(supabase);
 
 	const { error } = await supabase
 		.from('exercise')

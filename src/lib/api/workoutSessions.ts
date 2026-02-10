@@ -1,4 +1,4 @@
-import { supabase } from '$lib/supabaseClient';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { WorkoutSession } from '$lib/types';
 import { requireUser } from '$lib/auth';
 
@@ -26,8 +26,8 @@ const sessionSelect = [
 	'workout_exercise(id,workout_session_id,exercise_id,name_snapshot,notes,is_completed,order_index,created_at,workout_set(id,workout_exercise_id,reps,weight,order_index,created_at))',
 ].join(',');
 
-export const listWorkoutSessions = async (): Promise<WorkoutSession[]> => {
-	const user = await requireUser();
+export const listWorkoutSessions = async (supabase: SupabaseClient): Promise<WorkoutSession[]> => {
+	const user = await requireUser(supabase);
 
 	const { data, error } = await supabase
 		.from('workout_session')
@@ -44,8 +44,11 @@ export const listWorkoutSessions = async (): Promise<WorkoutSession[]> => {
 	return (data ?? []) as unknown as WorkoutSession[];
 };
 
-export const getWorkoutSession = async (id: string): Promise<WorkoutSession> => {
-	const user = await requireUser();
+export const getWorkoutSession = async (
+	supabase: SupabaseClient,
+	id: string
+): Promise<WorkoutSession> => {
+	const user = await requireUser(supabase);
 
 	const { data, error } = await supabase
 		.from('workout_session')
@@ -62,9 +65,10 @@ export const getWorkoutSession = async (id: string): Promise<WorkoutSession> => 
 };
 
 export const createWorkoutSession = async (
-	payload: WorkoutSessionInsert,
+	supabase: SupabaseClient,
+	payload: WorkoutSessionInsert
 ): Promise<WorkoutSession> => {
-	const user = await requireUser();
+	const user = await requireUser(supabase);
 
 	const { data, error } = await supabase
 		.from('workout_session')
@@ -74,8 +78,8 @@ export const createWorkoutSession = async (
 			date: payload.date,
 			notes: payload.notes ?? null,
 		})
-			.select(sessionSelect)
-			.single();
+		.select(sessionSelect)
+		.single();
 
 	if (error) {
 		console.error('Supabase createWorkoutSession error:', error);
@@ -86,10 +90,11 @@ export const createWorkoutSession = async (
 };
 
 export const updateWorkoutSession = async (
+	supabase: SupabaseClient,
 	id: string,
-	payload: WorkoutSessionUpdate,
+	payload: WorkoutSessionUpdate
 ): Promise<WorkoutSession> => {
-	const user = await requireUser();
+	const user = await requireUser(supabase);
 
 	const { data, error } = await supabase
 		.from('workout_session')
@@ -113,8 +118,8 @@ export const updateWorkoutSession = async (
 	return data as unknown as WorkoutSession;
 };
 
-export const deleteWorkoutSession = async (id: string): Promise<void> => {
-	const user = await requireUser();
+export const deleteWorkoutSession = async (supabase: SupabaseClient, id: string): Promise<void> => {
+	const user = await requireUser(supabase);
 
 	const { error } = await supabase
 		.from('workout_session')

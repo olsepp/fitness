@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { supabase } from '$lib/supabaseClient';
 	import { createExercise, deleteExercise } from '$lib/api/exercises';
 	import type { Exercise } from '$lib/types';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
@@ -52,7 +53,7 @@
 		console.log('[handleSubmit] About to call createExercise');
 
 		try {
-			const exercise = await createExercise({
+			const exercise = await createExercise(supabase, {
 				name: name.trim(),
 				notes: notes.trim() ? notes.trim() : null,
 			});
@@ -79,7 +80,7 @@
 		errorMessage = null;
 
 		try {
-			await deleteExercise(id);
+			await deleteExercise(supabase, id);
 			exercises = exercises.filter((exercise) => exercise.id !== id);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'Failed to delete exercise.';
