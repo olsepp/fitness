@@ -42,6 +42,10 @@
 		errorMessage = null;
 		return async ({ result }) => {
 			isSaving = false;
+			if (result.type === 'success') {
+				await goto('/exercises');
+				return;
+			}
 			if (result.type === 'failure') {
 				errorMessage = result.data?.error ?? 'Failed to update exercise.';
 			}

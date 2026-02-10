@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { applyAction, enhance } from '$app/forms';
 	import type { Exercise } from '$lib/types';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 
@@ -72,6 +72,7 @@
 		errorMessage = null;
 		return async ({ result }) => {
 			submitting = false;
+			await applyAction(result);
 			if (result.type === 'failure') {
 				errorMessage = result.data?.error ?? 'Failed to add exercise.';
 			}
@@ -81,6 +82,7 @@
 	const deleteEnhance = () => {
 		errorMessage = null;
 		return async ({ result }) => {
+			await applyAction(result);
 			if (result.type === 'failure') {
 				errorMessage = result.data?.error ?? 'Failed to delete exercise.';
 			}
@@ -275,19 +277,31 @@
 									</div>
 								</a>
 
-								<!-- Delete button (visible on hover/focus) -->
-								<button
-									type="button"
-									onclick={() => handleDelete(exercise.id, exercise.name)}
-									class="absolute right-0 top-0 h-full px-4 text-pink-400 transition-colors hover:bg-red-50 hover:text-red-500"
-									title="Delete exercise"
-								>
-									<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-										<polyline points="3 6 5 6 21 6" />
-										<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-									</svg>
-								</button>
-							</li>
+						<!-- Delete button (visible on hover/focus) -->
+						<form
+							class="absolute right-0 top-0 h-full"
+							method="POST"
+							action="?/delete"
+							use:enhance={deleteEnhance}
+							onsubmit={(event) => {
+								if (!confirm(`Delete "${exercise.name}"?`)) {
+									event.preventDefault();
+								}
+							}}
+						>
+							<input type="hidden" name="id" value={exercise.id} />
+							<button
+								type="submit"
+								class="h-full px-4 text-pink-400 transition-colors hover:bg-red-50 hover:text-red-500"
+								title="Delete exercise"
+							>
+								<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<polyline points="3 6 5 6 21 6" />
+									<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+								</svg>
+							</button>
+						</form>
+					</li>
 						{/each}
 					</ul>
 				</section>
