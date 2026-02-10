@@ -13,7 +13,11 @@ type ExerciseUpdate = {
 };
 
 export const listExercises = async (supabase: SupabaseClient): Promise<Exercise[]> => {
+	console.log('[listExercises] Called');
+	console.log('[listExercises] Supabase client exists:', !!supabase);
+
 	const user = await requireUser(supabase);
+	console.log('[listExercises] User:', user?.id);
 
 	const { data, error } = await supabase
 		.from('exercise')
@@ -22,14 +26,20 @@ export const listExercises = async (supabase: SupabaseClient): Promise<Exercise[
 		.order('created_at', { ascending: false });
 
 	if (error) {
+		console.error('[listExercises] Error:', error);
 		throw error;
 	}
 
+	console.log('[listExercises] Success, count:', data?.length);
 	return data ?? [];
 };
 
 export const getExerciseById = async (supabase: SupabaseClient, id: string): Promise<Exercise> => {
+	console.log('[getExerciseById] Called with id:', id);
+	console.log('[getExerciseById] Supabase client exists:', !!supabase);
+
 	const user = await requireUser(supabase);
+	console.log('[getExerciseById] User:', user?.id);
 
 	const { data, error } = await supabase
 		.from('exercise')
@@ -39,9 +49,11 @@ export const getExerciseById = async (supabase: SupabaseClient, id: string): Pro
 		.single();
 
 	if (error) {
+		console.error('[getExerciseById] Error:', error);
 		throw error;
 	}
 
+	console.log('[getExerciseById] Success:', data?.id);
 	return data;
 };
 
@@ -49,10 +61,19 @@ export const createExercise = async (
 	supabase: SupabaseClient,
 	payload: ExerciseInsert
 ): Promise<Exercise> => {
-	console.log('[createExercise] Starting...', payload);
-	const user = await requireUser(supabase);
-	console.log('[createExercise] User:', user?.id);
+	console.log('[createExercise] ===== START =====');
+	console.log('[createExercise] Payload:', payload);
+	console.log('[createExercise] Supabase client exists:', !!supabase);
+	console.log('[createExercise] Supabase client type:', typeof supabase);
+	console.log('[createExercise] Supabase has auth:', !!supabase?.auth);
+	console.log('[createExercise] Supabase has from:', !!supabase?.from);
 
+	console.log('[createExercise] About to call requireUser...');
+	const user = await requireUser(supabase);
+	console.log('[createExercise] requireUser returned, User ID:', user?.id);
+	console.log('[createExercise] User email:', user?.email);
+
+	console.log('[createExercise] About to insert into database...');
 	const { data, error } = await supabase
 		.from('exercise')
 		.insert({
@@ -63,14 +84,16 @@ export const createExercise = async (
 		.select('id,user_id,name,notes,created_at')
 		.single();
 
-	console.log('[createExercise] Response:', { data, error });
+	console.log('[createExercise] Database response:', { data, error });
 
 	if (error) {
-		console.error('[createExercise] Error:', error);
+		console.error('[createExercise] Database error:', error);
+		console.error('[createExercise] Error details:', JSON.stringify(error, null, 2));
 		throw error;
 	}
 
-	console.log('[createExercise] Success:', data);
+	console.log('[createExercise] Success! Created exercise:', data);
+	console.log('[createExercise] ===== END =====');
 	return data;
 };
 
@@ -79,7 +102,12 @@ export const updateExercise = async (
 	id: string,
 	payload: ExerciseUpdate
 ): Promise<Exercise> => {
+	console.log('[updateExercise] Called with id:', id);
+	console.log('[updateExercise] Payload:', payload);
+	console.log('[updateExercise] Supabase client exists:', !!supabase);
+
 	const user = await requireUser(supabase);
+	console.log('[updateExercise] User:', user?.id);
 
 	const { data, error } = await supabase
 		.from('exercise')
@@ -93,14 +121,20 @@ export const updateExercise = async (
 		.single();
 
 	if (error) {
+		console.error('[updateExercise] Error:', error);
 		throw error;
 	}
 
+	console.log('[updateExercise] Success:', data?.id);
 	return data;
 };
 
 export const deleteExercise = async (supabase: SupabaseClient, id: string): Promise<void> => {
+	console.log('[deleteExercise] Called with id:', id);
+	console.log('[deleteExercise] Supabase client exists:', !!supabase);
+
 	const user = await requireUser(supabase);
+	console.log('[deleteExercise] User:', user?.id);
 
 	const { error } = await supabase
 		.from('exercise')
@@ -109,6 +143,9 @@ export const deleteExercise = async (supabase: SupabaseClient, id: string): Prom
 		.eq('user_id', user.id);
 
 	if (error) {
+		console.error('[deleteExercise] Error:', error);
 		throw error;
 	}
+
+	console.log('[deleteExercise] Success');
 };
