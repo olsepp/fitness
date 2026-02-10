@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { updateWorkoutSession } from '$lib/api/workoutSessions';
+	import { deserialize } from '$app/forms';
 	import type { WorkoutSession } from '$lib/types';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 
@@ -8,16 +8,42 @@
 	let errorMessage = $state<string | null>(null);
 	let activeTab: 'all' | 'completed' | 'not_completed' = $state('all');
 
+	async function postAction(action: string, values: Record<string, string>) {
+		const formData = new FormData();
+		Object.entries(values).forEach(([key, value]) => {
+			if (value !== undefined && value !== null) {
+				formData.append(key, value);
+			}
+		});
+
+		const response = await fetch(`?/` + action, {
+			method: 'POST',
+			body: formData,
+			headers: {
+				accept: 'application/json'
+			}
+		});
+
+		return deserialize(await response.text());
+	}
+
 	async function toggleComplete(event: Event, workout: WorkoutSession) {
 		event.preventDefault();
 		event.stopPropagation();
 		try {
-			await updateWorkoutSession(workout.id, {
-				is_completed: !workout.is_completed,
+			const nextState = !workout.is_completed;
+			const result = await postAction('toggle-complete', {
+				workout_id: workout.id,
+				is_completed: String(nextState)
 			});
-			// Update local state
+
+			if (result.type === 'failure') {
+				errorMessage = result.data?.error ?? 'Failed to update workout.';
+				return;
+			}
+
 			workouts = workouts.map((w) =>
-				w.id === workout.id ? { ...w, is_completed: !w.is_completed } : w,
+				w.id === workout.id ? { ...w, is_completed: nextState } : w,
 			);
 		} catch (error) {
 			errorMessage = error instanceof Error ? error.message : 'Failed to update workout.';

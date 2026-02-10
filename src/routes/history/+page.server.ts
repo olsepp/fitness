@@ -1,4 +1,4 @@
-import type { PageServerLoad } from './$types';
+import { fail, type Actions, type PageServerLoad } from '@sveltejs/kit';
 import type { WorkoutSession } from '$lib/types';
 
 const sessionSelect = [
@@ -32,4 +32,35 @@ export const load: PageServerLoad = async ({ locals: { supabase, getSession } })
 	}
 
 	return { workouts: (data ?? []) as unknown as WorkoutSession[] };
+};
+
+export const actions: Actions = {
+	'toggle-complete': async ({ request, locals: { supabase, getSession } }) => {
+		const session = await getSession();
+		if (!session) {
+			return fail(401, { error: 'Not authenticated' });
+		}
+
+		const formData = await request.formData();
+		const workoutId = (formData.get('workout_id') as string | null) ?? '';
+		const isCompleted = formData.get('is_completed') === 'true';
+
+		if (!workoutId) {
+			return fail(400, { error: 'Missing workout id.' });
+		}
+
+		const { data, error } = await supabase
+			.from('workout_session')
+			.update({ is_completed: isCompleted })
+			.eq('id', workoutId)
+			.eq('user_id', session.user.id)
+			.select('id,is_completed')
+			.single();
+
+		if (error || !data) {
+			return fail(500, { error: error?.message ?? 'Failed to update workout.' });
+		}
+
+		return { success: true, workout: data };
+	}
 };
