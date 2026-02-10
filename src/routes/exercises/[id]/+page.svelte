@@ -1,69 +1,39 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { supabase } from '$lib/supabaseClient';
-	import { getExerciseById, updateExercise } from '$lib/api/exercises';
+	import { enhance } from '$app/forms';
 	import type { Exercise } from '$lib/types';
 	import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 
-	let exerciseId = $derived($page.params.id);
-	let exercise: Exercise | null = $state(null);
-	let name = $state('');
-	let notes = $state('');
-	let isLoading = $state(true);
+	let { data, form } = $props();
+	let exercise: Exercise | null = $state(data.exercise ?? null);
+	let name = $state(exercise?.name ?? '');
+	let notes = $state(exercise?.notes ?? '');
+	let isLoading = $state(false);
 	let isSaving = $state(false);
-	let errorMessage = $state<string | null>(null);
+	let errorMessage = $state<string | null>(form?.error ?? null);
 
-	onMount(async () => {
-		await loadExercise();
+	$effect(() => {
+		exercise = data.exercise ?? null;
+		if (exercise) {
+			name = form?.values?.name ?? exercise.name;
+			notes = form?.values?.notes ?? (exercise.notes || '');
+		}
+		if (form?.error) {
+			errorMessage = form.error;
+		}
 	});
 
-	async function loadExercise() {
-		isLoading = true;
-		errorMessage = null;
-		try {
-			exercise = await getExerciseById(supabase, exerciseId);
-			name = exercise.name;
-			notes = exercise.notes || '';
-		} catch (error) {
-			errorMessage = error instanceof Error ? error.message : 'Failed to load exercise.';
-		} finally {
-			isLoading = false;
-		}
-	}
-
-	async function handleSubmit(event: SubmitEvent) {
-		event.preventDefault();
-		
-		if (!name.trim()) {
-			errorMessage = 'Exercise name is required.';
-			return;
-		}
-
+	const updateEnhance = enhance(() => {
 		isSaving = true;
 		errorMessage = null;
-
-		try {
-			await updateExercise(supabase, exerciseId, {
-				name: name.trim(),
-				notes: notes.trim() ? notes.trim() : null,
-			});
-			goto('/exercises');
-		} catch (error) {
-			const message = error instanceof Error ? error.message : 'Failed to update exercise.';
-			errorMessage = message.includes('401')
-				? 'Unauthorized: please sign in before updating exercises.'
-				: message;
-		} finally {
+		return async ({ result }) => {
 			isSaving = false;
-		}
-	}
-
-	function handleCancel() {
-		goto('/exercises');
-	}
+			if (result.type === 'failure') {
+				errorMessage = result.data?.error ?? 'Failed to update exercise.';
+			}
+		};
+	});
 </script>
 
 <div class="mx-auto max-w-2xl space-y-6 p-4">
@@ -89,12 +59,13 @@
 			<LoadingSpinner text="Loading exercise..." />
 		</div>
 	{:else if exercise}
-		<form class="card p-6" onsubmit={handleSubmit}>
+		<form class="card p-6" method="POST" action="?/update" use:updateEnhance>
 			<div class="space-y-4">
 				<label class="flex flex-col gap-2 text-sm">
 					<span class="font-medium text-pink-700">Exercise name</span>
 					<input
 						type="text"
+						name="name"
 						bind:value={name}
 						class="input"
 						placeholder="Bench press"
@@ -105,6 +76,7 @@
 				<label class="flex flex-col gap-2 text-sm">
 					<span class="font-medium text-pink-700">Notes (optional)</span>
 					<textarea
+						name="notes"
 						bind:value={notes}
 						rows="4"
 						class="input resize-none"
@@ -131,7 +103,7 @@
 				</button>
 				<button
 					type="button"
-					onclick={handleCancel}
+					onclick={() => goto('/exercises')}
 					class="btn-secondary"
 					disabled={isSaving}
 				>

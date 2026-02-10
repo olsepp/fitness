@@ -1,10 +1,9 @@
 <script lang="ts">
-	import { supabase } from '$lib/supabaseClient';
-	import { createExercise, deleteExercise } from '$lib/api/exercises';
+	import { enhance } from '$app/forms';
 	import type { Exercise } from '$lib/types';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 
-	let { data } = $props();
+	let { data, form } = $props();
 	let exercises: Exercise[] = $state([]);
 
 	$effect(() => {
@@ -14,7 +13,7 @@
 	let showAddForm = $state(false);
 	let name = $state('');
 	let notes = $state('');
-	let errorMessage = $state<string | null>(null);
+	let errorMessage = $state<string | null>(form?.error ?? null);
 	let submitting = $state(false);
 
 	// Group exercises by first letter
@@ -40,55 +39,46 @@
 		Object.keys(groupedExercises).sort((a, b) => a.localeCompare(b))
 	);
 
-	const handleSubmit = async (event: SubmitEvent) => {
-		event.preventDefault();
-		console.log('[handleSubmit] Form submitted');
-		if (!name.trim()) {
-			errorMessage = 'Exercise name is required.';
-			return;
+	$effect(() => {
+		if (form?.error) {
+			errorMessage = form.error;
 		}
-
-		submitting = true;
-		errorMessage = null;
-		console.log('[handleSubmit] About to call createExercise');
-
-		try {
-			const exercise = await createExercise(supabase, {
-				name: name.trim(),
-				notes: notes.trim() ? notes.trim() : null,
-			});
-			console.log('[handleSubmit] createExercise succeeded', exercise);
-			exercises = [exercise, ...exercises];
+		if (form?.action === 'create' && form?.exercise) {
+			errorMessage = null;
+			exercises = [form.exercise as Exercise, ...exercises];
 			name = '';
 			notes = '';
 			showAddForm = false;
-		} catch (error) {
-			console.error('[handleSubmit] createExercise failed', error);
-			const message = error instanceof Error ? error.message : 'Failed to add exercise.';
-			errorMessage = message.includes('401')
-				? 'Unauthorized: please sign in before adding exercises.'
-				: message;
-		} finally {
-			console.log('[handleSubmit] Finally block');
-			submitting = false;
 		}
-	};
+		if (form?.action === 'delete' && form?.id) {
+			errorMessage = null;
+			exercises = exercises.filter((exercise) => exercise.id !== form.id);
+		}
+		if (form?.values) {
+			name = form.values.name ?? name;
+			notes = form.values.notes ?? notes;
+		}
+	});
 
-	const handleDelete = async (id: string, exerciseName: string) => {
-		if (!confirm(`Delete "${exerciseName}"?`)) return;
-
+	const createEnhance = enhance(() => {
+		submitting = true;
 		errorMessage = null;
+		return async ({ result }) => {
+			submitting = false;
+			if (result.type === 'failure') {
+				errorMessage = result.data?.error ?? 'Failed to add exercise.';
+			}
+		};
+	});
 
-		try {
-			await deleteExercise(supabase, id);
-			exercises = exercises.filter((exercise) => exercise.id !== id);
-		} catch (error) {
-			const message = error instanceof Error ? error.message : 'Failed to delete exercise.';
-			errorMessage = message.includes('401')
-				? 'Unauthorized: please sign in before deleting exercises.'
-				: message;
-		}
-	};
+	const deleteEnhance = enhance(() => {
+		errorMessage = null;
+		return async ({ result }) => {
+			if (result.type === 'failure') {
+				errorMessage = result.data?.error ?? 'Failed to delete exercise.';
+			}
+		};
+	});
 </script>
 
 
@@ -165,11 +155,13 @@
 	{#if showAddForm}
 		<form
 			class="mx-4 mt-4 overflow-hidden rounded-2xl border border-pink-200 bg-white p-5 shadow-lg shadow-pink-500/10"
-			onsubmit={handleSubmit}
+			method="POST"
+			action="?/create"
+			use:createEnhance
 		>
 			<h2 class="mb-4 font-medium text-pink-800">Add New Exercise ✨</h2>
 
-			{#if errorMessage && !isLoading}
+			{#if errorMessage}
 				<div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
 					{errorMessage}
 				</div>
@@ -178,6 +170,7 @@
 			<div class="space-y-3">
 				<input
 					type="text"
+					name="name"
 					bind:value={name}
 					placeholder="Exercise name"
 					class="input"
@@ -185,6 +178,7 @@
 				/>
 				<input
 					type="text"
+					name="notes"
 					bind:value={notes}
 					placeholder="Notes (optional)"
 					class="input"

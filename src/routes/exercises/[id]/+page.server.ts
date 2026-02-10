@@ -1,4 +1,4 @@
-import { redirect, type Actions } from '@sveltejs/kit';
+import { fail, redirect, type Actions } from '@sveltejs/kit';
 import type { Exercise } from '$lib/types';
 
 const userExercisesSelect = ['id', 'user_id', 'name', 'notes', 'created_at'].join(',');
@@ -27,7 +27,7 @@ export const actions: Actions = {
 	update: async ({ request, params: { id }, locals: { supabase, getSession } }) => {
 		const session = await getSession();
 		if (!session) {
-			return { success: false, error: 'Not authenticated' };
+			return fail(401, { error: 'Not authenticated', action: 'update' });
 		}
 
 		const formData = await request.formData();
@@ -35,7 +35,14 @@ export const actions: Actions = {
 		const notes = formData.get('notes') as string | null;
 
 		if (!name || !name.trim()) {
-			return { success: false, error: 'Exercise name is required' };
+			return fail(400, {
+				error: 'Exercise name is required',
+				action: 'update',
+				values: {
+					name: name ?? '',
+					notes: notes ?? ''
+				}
+			});
 		}
 
 		const { data, error } = await supabase
@@ -51,10 +58,17 @@ export const actions: Actions = {
 
 		if (error) {
 			console.error('Error updating exercise:', error);
-			return { success: false, error: error.message };
+			return fail(500, {
+				error: error.message,
+				action: 'update',
+				values: {
+					name: name.trim(),
+					notes: notes?.trim() || ''
+				}
+			});
 		}
 
-		return { success: true, exercise: data };
+		throw redirect(303, '/exercises');
 	},
 
 	delete: async ({ params: { id }, locals: { supabase, getSession } }) => {
