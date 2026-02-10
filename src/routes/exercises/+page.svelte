@@ -60,7 +60,7 @@
 		}
 	});
 
-	const createEnhance = enhance(() => {
+	const createEnhance = () => {
 		submitting = true;
 		errorMessage = null;
 		return async ({ result }) => {
@@ -69,16 +69,16 @@
 				errorMessage = result.data?.error ?? 'Failed to add exercise.';
 			}
 		};
-	});
+	};
 
-	const deleteEnhance = enhance(() => {
+	const deleteEnhance = () => {
 		errorMessage = null;
 		return async ({ result }) => {
 			if (result.type === 'failure') {
 				errorMessage = result.data?.error ?? 'Failed to delete exercise.';
 			}
 		};
-	});
+	};
 </script>
 
 
@@ -157,7 +157,7 @@
 			class="mx-4 mt-4 overflow-hidden rounded-2xl border border-pink-200 bg-white p-5 shadow-lg shadow-pink-500/10"
 			method="POST"
 			action="?/create"
-			use:createEnhance
+			use:enhance={createEnhance}
 		>
 			<h2 class="mb-4 font-medium text-pink-800">Add New Exercise ✨</h2>
 

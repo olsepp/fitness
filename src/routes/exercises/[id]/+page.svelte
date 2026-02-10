@@ -24,7 +24,7 @@
 		}
 	});
 
-	const updateEnhance = enhance(() => {
+	const updateEnhance = () => {
 		isSaving = true;
 		errorMessage = null;
 		return async ({ result }) => {
@@ -33,7 +33,7 @@
 				errorMessage = result.data?.error ?? 'Failed to update exercise.';
 			}
 		};
-	});
+	};
 </script>
 
 <div class="mx-auto max-w-2xl space-y-6 p-4">
@@ -59,7 +59,7 @@
 			<LoadingSpinner text="Loading exercise..." />
 		</div>
 	{:else if exercise}
-		<form class="card p-6" method="POST" action="?/update" use:updateEnhance>
+		<form class="card p-6" method="POST" action="?/update" use:enhance={updateEnhance}>
 			<div class="space-y-4">
 				<label class="flex flex-col gap-2 text-sm">
 					<span class="font-medium text-pink-700">Exercise name</span>
