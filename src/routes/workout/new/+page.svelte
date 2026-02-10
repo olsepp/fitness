@@ -2,10 +2,6 @@
 	import { goto } from '$app/navigation';
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
-	import { supabase } from '$lib/supabaseClient';
-	import { createWorkoutSession } from '$lib/api/workoutSessions';
-	import { addWorkoutExercise } from '$lib/api/workoutExercises';
-	import { addWorkoutSet } from '$lib/api/workoutSets';
 	import type { WorkoutType, Exercise } from '$lib/types';
 	import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
@@ -45,6 +41,21 @@
 	let isSubmitting = $state(false);
 	let errorMessage = $state<string | null>(null);
 	let lastCreatedExerciseId = $state<string | null>(null);
+	let serializedExercises = $derived.by(() =>
+		JSON.stringify(
+			selectedExercises.map((exercise, exerciseIndex) => ({
+				exercise_id: exercise.exerciseId,
+				name_snapshot: exercise.nameSnapshot,
+				notes: exercise.notes ?? null,
+				order_index: exerciseIndex,
+				sets: exercise.sets.map((set, setIndex) => ({
+					reps: Number(set.reps),
+					weight: typeof set.weight === 'number' ? set.weight : null,
+					order_index: setIndex,
+				}))
+			}))
+		)
+	);
 
 	interface NewWorkoutExercise {
 		exercise: Exercise;
@@ -142,70 +153,20 @@
 		);
 	}
 
-	async function handleSubmit() {
-		// Validation
-		if (!workoutTypeId) {
-			errorMessage = 'Please select a workout type.';
-			return;
-		}
-
-		if (selectedExercises.length === 0) {
-			errorMessage = 'Please add at least one exercise.';
-			return;
-		}
-
-		// Check each exercise has at least one set
-		for (const exercise of selectedExercises) {
-			if (exercise.sets.length === 0) {
-				errorMessage = `Exercise "${exercise.nameSnapshot}" must have at least one set.`;
-				return;
-			}
-		}
-
+	const workoutEnhance = () => {
 		isSubmitting = true;
 		errorMessage = null;
-
-		try {
-			// Create the workout session
-			const session = await createWorkoutSession(supabase, {
-				workout_type_id: workoutTypeId,
-				date: workoutDate,
-				notes: notes.trim() || null,
-			});
-
-			// Add exercises and sets
-			for (const exercise of selectedExercises) {
-				const workoutExercise = await addWorkoutExercise(supabase, {
-					workout_session_id: session.id,
-					exercise_id: exercise.exerciseId,
-					name_snapshot: exercise.nameSnapshot,
-					order_index: selectedExercises.indexOf(exercise),
-					notes: exercise.notes,
-				});
-
-				// Add sets for this exercise
-				for (const set of exercise.sets) {
-					await addWorkoutSet(supabase, {
-						workout_exercise_id: workoutExercise.id,
-						reps: set.reps,
-						weight: set.weight,
-						order_index: exercise.sets.indexOf(set),
-					});
-				}
-			}
-
-			// Navigate to history or home
-			goto('/history');
-		} catch (error) {
-			console.error('Create workout error:', error);
-			const message = error instanceof Error ? error.message : 'Failed to save workout.';
-			errorMessage = message.includes('401')
-				? 'Unauthorized: please sign in before creating a workout.'
-				: message;
-		} finally {
+		return async ({ result }) => {
 			isSubmitting = false;
-		}
-	}
+			if (result.type === 'redirect') {
+				await goto(result.location);
+				return;
+			}
+			if (result.type === 'failure') {
+				errorMessage = result.data?.error ?? 'Failed to save workout.';
+			}
+		};
+	};
 
 	function handleCancel() {
 		goto('/');
@@ -224,7 +185,7 @@
 		</div>
 	{/if}
 
-	<form class="space-y-6" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+	<form class="space-y-6" method="POST" action="?/create-workout" use:enhance={workoutEnhance}>
 		<!-- Workout Details -->
 		<div class="card p-5">
 			<h2 class="mb-4 font-display text-lg font-medium text-pink-800">Workout Details 📝</h2>
@@ -233,6 +194,7 @@
 					<span class="font-medium text-pink-700">Date</span>
 					<input
 						type="date"
+						name="date"
 						bind:value={workoutDate}
 						class="input"
 					/>
@@ -240,6 +202,7 @@
 				<label class="flex flex-col gap-2 text-sm">
 					<span class="font-medium text-pink-700">Workout Type</span>
 					<select
+						name="workout_type_id"
 						bind:value={workoutTypeId}
 						class="input"
 					>
@@ -253,6 +216,7 @@
 			<label class="mt-4 flex flex-col gap-2 text-sm">
 				<span class="font-medium text-pink-700">Notes (optional)</span>
 				<textarea
+					name="notes"
 					bind:value={notes}
 					rows="3"
 					class="input resize-none"
@@ -319,34 +283,31 @@
 					<!-- Or create new -->
 					<div class="border-t border-pink-200 pt-3">
 						<p class="mb-2 text-xs text-pink-500">Or create a new exercise:</p>
-				<form
-					class="flex gap-2"
-					method="POST"
-					action="?/create-exercise"
-					use:enhance={createExerciseEnhance}
-					onsubmit={(event) => {
-						if (!newExerciseName.trim()) {
-							event.preventDefault();
-							errorMessage = 'Exercise name is required.';
-						}
-					}}
-				>
+				<div class="flex gap-2">
 					<input
 						type="text"
-						name="name"
+						name="exercise_name"
+						form="create-exercise-form"
 						bind:value={newExerciseName}
 						placeholder="New exercise name..."
 						class="input flex-1 text-sm"
+						required
 					/>
-					<input type="hidden" name="notes" value="" />
+					<input
+						type="hidden"
+						name="exercise_notes"
+						form="create-exercise-form"
+						value=""
+					/>
 					<button
 						type="submit"
+						form="create-exercise-form"
 						disabled={isCreatingExercise}
 						class="btn-secondary text-sm"
 					>
 						{isCreatingExercise ? 'Creating...' : 'Create'}
 					</button>
-				</form>
+				</div>
 			</div>
 
 					<button
@@ -439,6 +400,8 @@
 			{/if}
 		</div>
 
+		<input type="hidden" name="exercises" value={serializedExercises} />
+
 		<!-- Actions -->
 		<div class="flex gap-4">
 			<button
@@ -466,4 +429,11 @@
 			</button>
 		</div>
 	</form>
+
+	<form
+		id="create-exercise-form"
+		method="POST"
+		action="?/create-exercise"
+		use:enhance={createExerciseEnhance}
+	></form>
 </div>
