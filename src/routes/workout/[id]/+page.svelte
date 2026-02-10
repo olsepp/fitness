@@ -1,16 +1,12 @@
 <script lang="ts">
-	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { supabase } from '$lib/supabaseClient';
-	import { updateWorkoutSession } from '$lib/api/workoutSessions';
-	import { addWorkoutExercise, deleteWorkoutExercise, toggleExerciseCompletion } from '$lib/api/workoutExercises';
-	import { addWorkoutSet, updateWorkoutSet, deleteWorkoutSet } from '$lib/api/workoutSets';
+	import { deserialize } from '$app/forms';
 	import type { WorkoutSession, WorkoutExercise, WorkoutSet, Exercise, WorkoutType } from '$lib/types';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 
 	let { data } = $props();
-	let workoutId = $derived($page.params.id);
 	let workout: WorkoutSession | null = $state(data.workout || null);
+	let workoutId = $derived(workout?.id ?? data.workout?.id ?? '');
 	let workoutTypes: WorkoutType[] = $state(data.workoutTypes || []);
 	let availableExercises: Exercise[] = $state(data.availableExercises || []);
 	let searchQuery = $state('');
@@ -65,27 +61,58 @@
 		return sets?.filter((s) => !removedSetIds.includes(s.id)) || [];
 	}
 
+	async function postAction(action: string, values: Record<string, string>) {
+		const formData = new FormData();
+		Object.entries(values).forEach(([key, value]) => {
+			if (value !== undefined && value !== null) {
+				formData.append(key, value);
+			}
+		});
+
+		const response = await fetch(`?/` + action, {
+			method: 'POST',
+			body: formData,
+			headers: {
+				accept: 'application/json'
+			}
+		});
+
+		return deserialize(await response.text());
+	}
+
 	async function handleAddExercise(exercise: Exercise) {
 		if (!workout) return;
 
 		const orderIndex = workout.workout_exercise?.length || 0;
 
 		try {
-			const newWorkoutExercise = await addWorkoutExercise(supabase, {
-				workout_session_id: workout.id,
+			const result = await postAction('add-exercise', {
+				workout_id: workoutId,
 				exercise_id: exercise.id,
 				name_snapshot: exercise.name,
-				order_index: orderIndex,
+				order_index: String(orderIndex)
 			});
 
-			// Add to local state
-			workout = {
-				...workout,
-				workout_exercise: [
-					...(workout.workout_exercise || []),
-					{ ...newWorkoutExercise, workout_set: [] },
-				],
-			};
+			if (result.type === 'redirect') {
+				await goto(result.location);
+				return;
+			}
+
+			if (result.type === 'failure') {
+				errorMessage = result.data?.error ?? 'Failed to add exercise.';
+				return;
+			}
+
+			const newWorkoutExercise = result.data?.workoutExercise as WorkoutExercise | undefined;
+			if (newWorkoutExercise) {
+				workout = {
+					...workout,
+					workout_exercise: [
+						...(workout.workout_exercise || []),
+						{ ...newWorkoutExercise, workout_set: newWorkoutExercise.workout_set || [] },
+					]
+				};
+			}
 
 			showAddExercise = false;
 			searchQuery = '';
@@ -102,12 +129,41 @@
 		}
 
 		try {
-			// Import createExercise dynamically to avoid issues
-			const { createExercise } = await import('$lib/api/exercises');
-			const newExercise = await createExercise(supabase, { name: trimmedName, notes: null });
-			availableExercises = [newExercise, ...availableExercises];
-			await handleAddExercise(newExercise);
+			const orderIndex = workout?.workout_exercise?.length || 0;
+			const result = await postAction('create-exercise', {
+				workout_id: workoutId,
+				name: trimmedName,
+				notes: '',
+				order_index: String(orderIndex)
+			});
+
+			if (result.type === 'redirect') {
+				await goto(result.location);
+				return;
+			}
+
+			if (result.type === 'failure') {
+				errorMessage = result.data?.error ?? 'Failed to create exercise.';
+				return;
+			}
+
+			const createdExercise = result.data?.exercise as Exercise | undefined;
+			const newWorkoutExercise = result.data?.workoutExercise as WorkoutExercise | undefined;
+			if (createdExercise && !availableExercises.some((ex) => ex.id === createdExercise.id)) {
+				availableExercises = [createdExercise, ...availableExercises];
+			}
+			if (newWorkoutExercise && workout) {
+				workout = {
+					...workout,
+					workout_exercise: [
+						...(workout.workout_exercise || []),
+						{ ...newWorkoutExercise, workout_set: newWorkoutExercise.workout_set || [] }
+					]
+				};
+			}
 			newExerciseName = '';
+			showAddExercise = false;
+			searchQuery = '';
 		} catch (error) {
 			errorMessage = error instanceof Error ? error.message : 'Failed to create exercise.';
 		}
@@ -129,12 +185,27 @@
 		const orderIndex = exercise.workout_set?.length || 0;
 
 		try {
-			const newSet = await addWorkoutSet(supabase, {
+			const result = await postAction('add-set', {
 				workout_exercise_id: exerciseId,
-				reps: 10,
-				weight: null,
-				order_index: orderIndex,
+				reps: '10',
+				weight: '',
+				order_index: String(orderIndex)
 			});
+
+			if (result.type === 'redirect') {
+				await goto(result.location);
+				return;
+			}
+
+			if (result.type === 'failure') {
+				errorMessage = result.data?.error ?? 'Failed to add set.';
+				return;
+			}
+
+			const newSet = result.data?.set as WorkoutSet | undefined;
+			if (!newSet) {
+				return;
+			}
 
 			// Update local state
 			workout = {
@@ -152,11 +223,20 @@
 
 	async function handleUpdateSet(set: WorkoutSet) {
 		try {
-			await updateWorkoutSet(supabase, set.id, {
-				reps: set.reps,
-				weight: set.weight,
-				order_index: set.order_index,
+			const result = await postAction('update-set', {
+				set_id: set.id,
+				reps: String(set.reps),
+				weight: typeof set.weight === 'number' ? String(set.weight) : ''
 			});
+
+			if (result.type === 'redirect') {
+				await goto(result.location);
+				return;
+			}
+
+			if (result.type === 'failure') {
+				errorMessage = result.data?.error ?? 'Failed to update set.';
+			}
 		} catch (error) {
 			errorMessage = error instanceof Error ? error.message : 'Failed to update set.';
 		}
@@ -173,10 +253,23 @@
 		if (!workout) return;
 
 		try {
-			const updated = await updateWorkoutSession(supabase, workout.id, {
-				is_completed: !workout.is_completed,
+			const nextState = !workout.is_completed;
+			const result = await postAction('toggle-workout-complete', {
+				workout_id: workoutId,
+				is_completed: String(nextState)
 			});
-			workout = { ...workout, is_completed: updated.is_completed };
+
+			if (result.type === 'redirect') {
+				await goto(result.location);
+				return;
+			}
+
+			if (result.type === 'failure') {
+				errorMessage = result.data?.error ?? 'Failed to update workout.';
+				return;
+			}
+
+			workout = { ...workout, is_completed: nextState };
 		} catch (error) {
 			errorMessage = error instanceof Error ? error.message : 'Failed to update workout.';
 		}
@@ -187,7 +280,21 @@
 
 		const newState = !exercise.is_completed;
 		try {
-			await toggleExerciseCompletion(supabase, exercise.id, newState);
+			const result = await postAction('toggle-exercise-complete', {
+				workout_exercise_id: exercise.id,
+				is_completed: String(newState)
+			});
+
+			if (result.type === 'redirect') {
+				await goto(result.location);
+				return;
+			}
+
+			if (result.type === 'failure') {
+				errorMessage = result.data?.error ?? 'Failed to update exercise.';
+				return;
+			}
+
 			// Update local state
 			workout = {
 				...workout,
@@ -215,22 +322,25 @@
 		errorMessage = null;
 
 		try {
-			// First, delete removed exercises and sets from database
-			for (const exerciseId of removedExerciseIds) {
-				await deleteWorkoutExercise(supabase, exerciseId);
-			}
-			for (const setId of removedSetIds) {
-				await deleteWorkoutSet(supabase, setId);
-			}
-
-			// Then save workout details
-			await updateWorkoutSession(supabase, workout.id, {
+			const result = await postAction('save-workout', {
+				workout_id: workoutId,
 				workout_type_id: workoutTypeId,
 				date: workoutDate,
-				notes: notes.trim() || null,
+				notes: notes,
+				removed_exercise_ids: JSON.stringify(removedExerciseIds),
+				removed_set_ids: JSON.stringify(removedSetIds)
 			});
 
-			// Show success and go back
+			if (result.type === 'redirect') {
+				await goto(result.location);
+				return;
+			}
+
+			if (result.type === 'failure') {
+				errorMessage = result.data?.error ?? 'Failed to save workout.';
+				return;
+			}
+
 			goto('/history');
 		} catch (error) {
 			errorMessage = error instanceof Error ? error.message : 'Failed to save workout.';
