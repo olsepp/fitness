@@ -4,11 +4,8 @@
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 
 	let { data, form } = $props();
-	let exercises: Exercise[] = $state([]);
-
-	$effect(() => {
-		exercises = data.exercises || [];
-	});
+	let exercises: Exercise[] = $state(data.exercises || []);
+	let lastDataSignature = $state(JSON.stringify((data.exercises || []).map((exercise) => exercise.id)));
 	let searchQuery = $state('');
 	let showAddForm = $state(false);
 	let name = $state('');
@@ -45,7 +42,9 @@
 		}
 		if (form?.action === 'create' && form?.exercise) {
 			errorMessage = null;
-			exercises = [form.exercise as Exercise, ...exercises];
+			if (!exercises.some((exercise) => exercise.id === form.exercise.id)) {
+				exercises = [form.exercise as Exercise, ...exercises];
+			}
 			name = '';
 			notes = '';
 			showAddForm = false;
@@ -57,6 +56,14 @@
 		if (form?.values) {
 			name = form.values.name ?? name;
 			notes = form.values.notes ?? notes;
+		}
+	});
+
+	$effect(() => {
+		const nextSignature = JSON.stringify((data.exercises || []).map((exercise) => exercise.id));
+		if (nextSignature !== lastDataSignature) {
+			exercises = data.exercises || [];
+			lastDataSignature = nextSignature;
 		}
 	});
 

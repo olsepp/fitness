@@ -6,21 +6,34 @@
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 
 	let { data, form } = $props();
-	let exercise: Exercise | null = $state(data.exercise ?? null);
-	let name = $state(exercise?.name ?? '');
-	let notes = $state(exercise?.notes ?? '');
+	let exercise = $derived(data.exercise ?? null);
+	let name = $state('');
+	let notes = $state('');
 	let isLoading = $state(false);
 	let isSaving = $state(false);
 	let errorMessage = $state<string | null>(form?.error ?? null);
+	let lastExerciseId = $state<string | null>(null);
+	let lastFormValuesKey = $state<string | null>(null);
 
 	$effect(() => {
-		exercise = data.exercise ?? null;
-		if (exercise) {
-			name = form?.values?.name ?? exercise.name;
-			notes = form?.values?.notes ?? (exercise.notes || '');
+		if (exercise?.id && exercise.id !== lastExerciseId) {
+			name = exercise.name;
+			notes = exercise.notes || '';
+			lastExerciseId = exercise.id;
 		}
+	});
+
+	$effect(() => {
 		if (form?.error) {
 			errorMessage = form.error;
+		}
+		const nextValuesKey = form?.values
+			? `${form.values.name ?? ''}::${form.values.notes ?? ''}`
+			: null;
+		if (nextValuesKey && nextValuesKey !== lastFormValuesKey) {
+			name = form?.values?.name ?? '';
+			notes = form?.values?.notes ?? '';
+			lastFormValuesKey = nextValuesKey;
 		}
 	});
 
