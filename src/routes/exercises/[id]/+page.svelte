@@ -42,6 +42,10 @@
 		errorMessage = null;
 		return async ({ result }) => {
 			isSaving = false;
+			if (result.type === 'redirect') {
+				await goto(result.location);
+				return;
+			}
 			if (result.type === 'success') {
 				await goto('/exercises');
 				return;

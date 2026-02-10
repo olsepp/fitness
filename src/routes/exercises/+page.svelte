@@ -1,11 +1,10 @@
 <script lang="ts">
-	import { applyAction, enhance } from '$app/forms';
+	import { enhance } from '$app/forms';
 	import type { Exercise } from '$lib/types';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 
 	let { data, form } = $props();
 	let exercises: Exercise[] = $state(data.exercises || []);
-	let lastDataSignature = $state(JSON.stringify((data.exercises || []).map((exercise) => exercise.id)));
 	let searchQuery = $state('');
 	let showAddForm = $state(false);
 	let name = $state('');
@@ -37,33 +36,16 @@
 	);
 
 	$effect(() => {
-		if (form?.error) {
-			errorMessage = form.error;
-		}
-		if (form?.action === 'create' && form?.exercise) {
-			errorMessage = null;
-			if (!exercises.some((exercise) => exercise.id === form.exercise.id)) {
-				exercises = [form.exercise as Exercise, ...exercises];
-			}
-			name = '';
-			notes = '';
-			showAddForm = false;
-		}
-		if (form?.action === 'delete' && form?.id) {
-			errorMessage = null;
-			exercises = exercises.filter((exercise) => exercise.id !== form.id);
-		}
-		if (form?.values) {
-			name = form.values.name ?? name;
-			notes = form.values.notes ?? notes;
-		}
+		exercises = data.exercises || [];
 	});
 
 	$effect(() => {
-		const nextSignature = JSON.stringify((data.exercises || []).map((exercise) => exercise.id));
-		if (nextSignature !== lastDataSignature) {
-			exercises = data.exercises || [];
-			lastDataSignature = nextSignature;
+		if (form?.error) {
+			errorMessage = form.error;
+		}
+		if (form?.values) {
+			name = form.values.name ?? '';
+			notes = form.values.notes ?? '';
 		}
 	});
 
@@ -72,9 +54,22 @@
 		errorMessage = null;
 		return async ({ result }) => {
 			submitting = false;
-			await applyAction(result);
+			if (result.type === 'success' && result.data?.exercise) {
+				const created = result.data.exercise as Exercise;
+				if (!exercises.some((exercise) => exercise.id === created.id)) {
+					exercises = [created, ...exercises];
+				}
+				name = '';
+				notes = '';
+				showAddForm = false;
+				return;
+			}
 			if (result.type === 'failure') {
 				errorMessage = result.data?.error ?? 'Failed to add exercise.';
+				if (result.data?.values) {
+					name = result.data.values.name ?? name;
+					notes = result.data.values.notes ?? notes;
+				}
 			}
 		};
 	};
@@ -82,7 +77,10 @@
 	const deleteEnhance = () => {
 		errorMessage = null;
 		return async ({ result }) => {
-			await applyAction(result);
+			if (result.type === 'success' && result.data?.id) {
+				exercises = exercises.filter((exercise) => exercise.id !== result.data.id);
+				return;
+			}
 			if (result.type === 'failure') {
 				errorMessage = result.data?.error ?? 'Failed to delete exercise.';
 			}
