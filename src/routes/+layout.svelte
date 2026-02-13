@@ -3,9 +3,10 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import { supabase } from '$lib/supabaseClient';
 	import { onMount } from 'svelte';
+	import type { Session } from '@supabase/supabase-js';
 
-	let { data, children } = $props();
-	let session = $state(data.session);
+	let { data, children } = $props<{ data: { session: Session | null } }>();
+	let session = $state<Session | null>(data.session);
 	let menuOpen = $state(false);
 
 	// Keep session in sync when data changes (e.g., after sign-in)
@@ -15,11 +16,8 @@
 
 	// Listen for auth state changes
 	onMount(() => {
-		const { data: { subscription } } = supabase.auth.onAuthStateChange(async () => {
-			const {
-				data: { user }
-			} = await supabase.auth.getUser();
-			session = user ? { user } : null;
+		const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+			session = newSession;
 		});
 
 		return () => {

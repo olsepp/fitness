@@ -38,7 +38,7 @@
 			});
 
 			if (result.type === 'failure') {
-				errorMessage = result.data?.error ?? 'Failed to update workout.';
+				errorMessage = String(result.data?.error ?? 'Failed to update workout.');
 				return;
 			}
 

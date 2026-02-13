@@ -1,9 +1,19 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import type { SubmitFunction } from '@sveltejs/kit';
 	import type { Exercise } from '$lib/types';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 
-	let { data, form } = $props();
+	type ActionData = {
+		success?: boolean;
+		error?: string;
+		action?: string;
+		exercise?: Exercise;
+		id?: string;
+		values?: { name: string; notes: string };
+	};
+
+	let { data, form }: { data: { exercises: Exercise[] }; form: ActionData | null } = $props();
 	let exercises: Exercise[] = $state(data.exercises || []);
 	let searchQuery = $state('');
 	let showAddForm = $state(false);
@@ -49,7 +59,7 @@
 		}
 	});
 
-	const createEnhance = () => {
+	const createEnhance: SubmitFunction = () => {
 		submitting = true;
 		errorMessage = null;
 		return async ({ result }) => {
@@ -74,15 +84,18 @@
 		};
 	};
 
-	const deleteEnhance = () => {
+	const deleteEnhance: SubmitFunction = () => {
 		errorMessage = null;
 		return async ({ result }) => {
-			if (result.type === 'success' && result.data?.id) {
-				exercises = exercises.filter((exercise) => exercise.id !== result.data.id);
+			if (result.type === 'success') {
+				const deletedId = result.data?.id as string | undefined;
+				if (deletedId) {
+					exercises = exercises.filter((exercise) => exercise.id !== deletedId);
+				}
 				return;
 			}
 			if (result.type === 'failure') {
-				errorMessage = result.data?.error ?? 'Failed to delete exercise.';
+				errorMessage = String(result.data?.error ?? 'Failed to delete exercise.');
 			}
 		};
 	};

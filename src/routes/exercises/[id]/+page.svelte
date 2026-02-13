@@ -1,11 +1,19 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
+	import type { SubmitFunction } from '@sveltejs/kit';
 	import type { Exercise } from '$lib/types';
 	import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 
-	let { data, form } = $props();
+	type ActionData = {
+		success?: boolean;
+		error?: string;
+		action?: string;
+		values?: { name: string; notes: string };
+	};
+
+	let { data, form }: { data: { exercise: Exercise | null }; form: ActionData | null } = $props();
 	let exercise = $derived(data.exercise ?? null);
 	let name = $state('');
 	let notes = $state('');
@@ -37,7 +45,7 @@
 		}
 	});
 
-	const updateEnhance = () => {
+	const updateEnhance: SubmitFunction = () => {
 		isSaving = true;
 		errorMessage = null;
 		return async ({ result }) => {
@@ -51,7 +59,7 @@
 				return;
 			}
 			if (result.type === 'failure') {
-				errorMessage = result.data?.error ?? 'Failed to update exercise.';
+				errorMessage = String(result.data?.error ?? 'Failed to update exercise.');
 			}
 		};
 	};
@@ -77,7 +85,7 @@
 
 	{#if isLoading}
 		<div class="py-16">
-			<LoadingSpinner text="Loading exercise..." />
+			<LoadingSpinner />
 		</div>
 	{:else if exercise}
 		<form class="card p-6" method="POST" action="?/update" use:enhance={updateEnhance}>

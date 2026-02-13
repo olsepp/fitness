@@ -1,36 +1,37 @@
 import { fail, redirect, type Actions } from '@sveltejs/kit';
-import type { Exercise } from '$lib/types';
+import type { PageServerLoad } from './$types';
+import { createRepositories } from '$lib/repositories';
 
-const userExercisesSelect = ['id', 'user_id', 'name', 'notes', 'created_at'].join(',');
-
-export const load = async ({ params: { id }, locals: { supabase, getSession } }) => {
-	const session = await getSession();
+export const load: PageServerLoad = async (event) => {
+	const session = await event.locals.getSession();
 	if (!session) {
 		return { exercise: null };
 	}
 
-	const { data, error } = await supabase
-		.from('exercise')
-		.select(userExercisesSelect)
-		.eq('id', id)
-		.eq('user_id', session.user.id)
-		.single();
-
-	if (error || !data) {
+	const { id } = event.params;
+	if (!id) {
 		return { exercise: null };
 	}
 
-	return { exercise: data as Exercise };
+	const repos = createRepositories(event);
+	const exercise = await repos.exercises.getById(id);
+
+	return { exercise };
 };
 
 export const actions: Actions = {
-	update: async ({ request, params: { id }, locals: { supabase, getSession } }) => {
-		const session = await getSession();
+	update: async (event) => {
+		const session = await event.locals.getSession();
 		if (!session) {
 			return fail(401, { error: 'Not authenticated', action: 'update' });
 		}
 
-		const formData = await request.formData();
+		const { id } = event.params;
+		if (!id) {
+			return fail(400, { error: 'Missing exercise id', action: 'update' });
+		}
+
+		const formData = await event.request.formData();
 		const name = formData.get('name') as string;
 		const notes = formData.get('notes') as string | null;
 
@@ -45,21 +46,23 @@ export const actions: Actions = {
 			});
 		}
 
-		const { data, error } = await supabase
-			.from('exercise')
-			.update({
+		const repos = createRepositories(event);
+
+		try {
+			await repos.exercises.update(id, {
 				name: name.trim(),
 				notes: notes?.trim() || null
-			})
-			.eq('id', id)
-			.eq('user_id', session.user.id)
-			.select('id,user_id,name,notes,created_at')
-			.single();
+			});
 
-		if (error) {
-			console.error('Error updating exercise:', error);
+			throw redirect(303, '/exercises');
+		} catch (err) {
+			// Re-throw redirects - check for status property that indicates a redirect
+			if (err && typeof err === 'object' && 'status' in err && 'location' in err) {
+				throw err;
+			}
+			console.error('Error updating exercise:', err);
 			return fail(500, {
-				error: error.message,
+				error: 'Failed to update exercise',
 				action: 'update',
 				values: {
 					name: name.trim(),
@@ -67,27 +70,31 @@ export const actions: Actions = {
 				}
 			});
 		}
-
-		throw redirect(303, '/exercises');
 	},
 
-	delete: async ({ params: { id }, locals: { supabase, getSession } }) => {
-		const session = await getSession();
+	delete: async (event) => {
+		const session = await event.locals.getSession();
 		if (!session) {
 			return { success: false, error: 'Not authenticated' };
 		}
 
-		const { error } = await supabase
-			.from('exercise')
-			.delete()
-			.eq('id', id)
-			.eq('user_id', session.user.id);
-
-		if (error) {
-			console.error('Error deleting exercise:', error);
-			return { success: false, error: error.message };
+		const { id } = event.params;
+		if (!id) {
+			return { success: false, error: 'Missing exercise id' };
 		}
 
-		throw redirect(303, '/exercises');
+		const repos = createRepositories(event);
+
+		try {
+			await repos.exercises.delete(id);
+			throw redirect(303, '/exercises');
+		} catch (err) {
+			// Re-throw redirects - check for status property that indicates a redirect
+			if (err && typeof err === 'object' && 'status' in err && 'location' in err) {
+				throw err;
+			}
+			console.error('Error deleting exercise:', err);
+			return { success: false, error: 'Failed to delete exercise' };
+		}
 	}
 };

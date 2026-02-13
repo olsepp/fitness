@@ -1,33 +1,28 @@
 import { fail, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import type { Exercise } from '$lib/types';
+import { createRepositories } from '$lib/repositories';
 
-const exercisesSelect = ['id', 'name', 'notes', 'created_at'].join(',');
-
-export const load: PageServerLoad = async ({ locals: { supabase, getSession } }) => {
-	const session = await getSession();
+export const load: PageServerLoad = async (event) => {
+	const session = await event.locals.getSession();
 	if (!session) {
 		return { exercises: [] };
 	}
 
-	const { data, error } = await supabase
-		.from('exercise')
-		.select(exercisesSelect)
-		.eq('user_id', session.user.id)
-		.order('created_at', { ascending: false });
+	const repos = createRepositories(event);
 
-	if (error) {
+	try {
+		const exercises = await repos.exercises.list();
+		return { exercises };
+	} catch (error) {
 		console.error('Error loading exercises:', error);
 		return { exercises: [] };
 	}
-
-	return { exercises: (data || []) as unknown as Exercise[] };
 };
 
 export const actions: Actions = {
-	create: async ({ request, locals: { supabase, getSession } }) => {
-		const session = await getSession();
-		const formData = await request.formData();
+	create: async (event) => {
+		const session = await event.locals.getSession();
+		const formData = await event.request.formData();
 		const name = (formData.get('name') as string | null) ?? '';
 		const notes = (formData.get('notes') as string | null) ?? '';
 
@@ -47,31 +42,28 @@ export const actions: Actions = {
 			});
 		}
 
-		const { data, error } = await supabase
-			.from('exercise')
-			.insert({
-				name: name.trim(),
-				notes: notes.trim() || null,
-				user_id: session.user.id
-			})
-			.select('id,user_id,name,notes,created_at')
-			.single();
+		const repos = createRepositories(event);
 
-		if (error) {
+		try {
+			const exercise = await repos.exercises.create({
+				name: name.trim(),
+				notes: notes.trim() || null
+			});
+
+			return { success: true, action: 'create', exercise };
+		} catch (error) {
 			console.error('Error creating exercise:', error);
 			return fail(500, {
-				error: error.message,
+				error: 'Failed to create exercise',
 				action: 'create',
 				values: { name, notes }
 			});
 		}
-
-		return { success: true, action: 'create', exercise: data };
 	},
 
-	delete: async ({ request, locals: { supabase, getSession } }) => {
-		const session = await getSession();
-		const formData = await request.formData();
+	delete: async (event) => {
+		const session = await event.locals.getSession();
+		const formData = await event.request.formData();
 		const id = (formData.get('id') as string | null) ?? '';
 
 		if (!session) {
@@ -82,17 +74,14 @@ export const actions: Actions = {
 			return fail(400, { error: 'Exercise id is required', action: 'delete' });
 		}
 
-		const { error } = await supabase
-			.from('exercise')
-			.delete()
-			.eq('id', id)
-			.eq('user_id', session.user.id);
+		const repos = createRepositories(event);
 
-		if (error) {
+		try {
+			await repos.exercises.delete(id);
+			return { success: true, action: 'delete', id };
+		} catch (error) {
 			console.error('Error deleting exercise:', error);
-			return fail(500, { error: error.message, action: 'delete', id });
+			return fail(500, { error: 'Failed to delete exercise', action: 'delete', id });
 		}
-
-		return { success: true, action: 'delete', id };
 	}
 };

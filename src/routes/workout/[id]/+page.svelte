@@ -99,9 +99,11 @@
 			}
 
 			if (result.type === 'failure') {
-				errorMessage = result.data?.error ?? 'Failed to add exercise.';
+				errorMessage = String(result.data?.error ?? 'Failed to add exercise.');
 				return;
 			}
+
+			if (result.type !== 'success') return;
 
 			const newWorkoutExercise = result.data?.workoutExercise as WorkoutExercise | undefined;
 			if (newWorkoutExercise) {
@@ -143,9 +145,11 @@
 			}
 
 			if (result.type === 'failure') {
-				errorMessage = result.data?.error ?? 'Failed to create exercise.';
+				errorMessage = String(result.data?.error ?? 'Failed to create exercise.');
 				return;
 			}
+
+			if (result.type !== 'success') return;
 
 			const createdExercise = result.data?.exercise as Exercise | undefined;
 			const newWorkoutExercise = result.data?.workoutExercise as WorkoutExercise | undefined;
@@ -198,9 +202,11 @@
 			}
 
 			if (result.type === 'failure') {
-				errorMessage = result.data?.error ?? 'Failed to add set.';
+				errorMessage = String(result.data?.error ?? 'Failed to add set.');
 				return;
 			}
+
+			if (result.type !== 'success') return;
 
 			const newSet = result.data?.set as WorkoutSet | undefined;
 			if (!newSet) {
@@ -235,7 +241,7 @@
 			}
 
 			if (result.type === 'failure') {
-				errorMessage = result.data?.error ?? 'Failed to update set.';
+				errorMessage = String(result.data?.error ?? 'Failed to update set.');
 			}
 		} catch (error) {
 			errorMessage = error instanceof Error ? error.message : 'Failed to update set.';
@@ -265,7 +271,7 @@
 			}
 
 			if (result.type === 'failure') {
-				errorMessage = result.data?.error ?? 'Failed to update workout.';
+				errorMessage = String(result.data?.error ?? 'Failed to update workout.');
 				return;
 			}
 
@@ -291,7 +297,7 @@
 			}
 
 			if (result.type === 'failure') {
-				errorMessage = result.data?.error ?? 'Failed to update exercise.';
+				errorMessage = String(result.data?.error ?? 'Failed to update exercise.');
 				return;
 			}
 
@@ -337,7 +343,7 @@
 			}
 
 			if (result.type === 'failure') {
-				errorMessage = result.data?.error ?? 'Failed to save workout.';
+				errorMessage = String(result.data?.error ?? 'Failed to save workout.');
 				return;
 			}
 
