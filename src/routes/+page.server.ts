@@ -1,35 +1,19 @@
 import type { PageServerLoad } from './$types';
-import type { WorkoutSession } from '$lib/types';
+import { createRepositories } from '$lib/repositories';
 
-const sessionSelect = [
-	'id',
-	'workout_type_id',
-	'date',
-	'notes',
-	'is_completed',
-	'created_at',
-	'workout_type(id,key,name,icon)',
-	'workout_exercise(id,workout_session_id,exercise_id,name_snapshot,notes,is_completed,order_index,created_at,workout_set(id,workout_exercise_id,reps,weight,order_index,created_at))',
-].join(',');
-
-export const load: PageServerLoad = async ({ locals: { supabase, getSession } }) => {
-	const session = await getSession();
+export const load: PageServerLoad = async (event) => {
+	const session = await event.locals.getSession();
 	if (!session) {
 		return { workouts: [] };
 	}
 
-	const { data, error } = await supabase
-		.from('workout_session')
-		.select(sessionSelect)
-		.eq('user_id', session.user.id)
-		.order('date', { ascending: false })
-		.order('order_index', { referencedTable: 'workout_exercise', ascending: true })
-		.order('order_index', { referencedTable: 'workout_exercise.workout_set', ascending: true });
+	const repos = createRepositories(event);
 
-	if (error) {
+	try {
+		const workouts = await repos.workoutSessions.list();
+		return { workouts };
+	} catch (error) {
 		console.error('Error loading workouts:', error);
 		return { workouts: [] };
 	}
-
-	return { workouts: (data ?? []) as unknown as WorkoutSession[] };
 };

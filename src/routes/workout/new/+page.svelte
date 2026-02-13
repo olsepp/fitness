@@ -2,11 +2,12 @@
 	import { goto } from '$app/navigation';
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
+	import type { SubmitFunction } from '@sveltejs/kit';
 	import type { WorkoutType, Exercise } from '$lib/types';
 	import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 
-	let { data } = $props();
+	let { data }: { data: { workoutTypes: WorkoutType[]; exercises: Exercise[] } } = $props();
 
 	// Form state
 	let workoutDate = $state(formatDateToYYYYMMDD(new Date()));
@@ -110,7 +111,7 @@
 		searchQuery = '';
 	}
 
-	const createExerciseEnhance = () => {
+	const createExerciseEnhance: SubmitFunction = () => {
 		isCreatingExercise = true;
 		errorMessage = null;
 		return async ({ result }) => {
@@ -128,9 +129,9 @@
 				return;
 			}
 			if (result.type === 'failure') {
-				errorMessage = result.data?.error ?? 'Failed to create exercise.';
+				errorMessage = String(result.data?.error ?? 'Failed to create exercise.');
 				if (result.data?.values?.name) {
-					newExerciseName = result.data.values.name;
+					newExerciseName = String(result.data.values.name);
 				}
 			}
 		};
@@ -153,7 +154,7 @@
 		);
 	}
 
-	const workoutEnhance = () => {
+	const workoutEnhance: SubmitFunction = () => {
 		isSubmitting = true;
 		errorMessage = null;
 		return async ({ result }) => {
@@ -163,7 +164,7 @@
 				return;
 			}
 			if (result.type === 'failure') {
-				errorMessage = result.data?.error ?? 'Failed to save workout.';
+				errorMessage = String(result.data?.error ?? 'Failed to save workout.');
 			}
 		};
 	};
