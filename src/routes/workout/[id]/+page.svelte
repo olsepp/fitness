@@ -38,6 +38,51 @@
 		return isNaN(parsed) || value.trim() === '' ? null : parsed;
 	}
 
+	// Generate temporary IDs for optimistic updates
+	function generateTempId(): string {
+		return `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+	}
+
+	// Remove temp set on failure
+	function removeTempSet(workoutData: WorkoutSession, exerciseId: string, tempId: string): WorkoutSession {
+		return {
+			...workoutData,
+			workout_exercise: workoutData.workout_exercise?.map((e) =>
+				e.id === exerciseId
+					? { ...e, workout_set: e.workout_set?.filter(s => s.id !== tempId) }
+					: e
+			)
+		};
+	}
+
+	// Replace temp with real set
+	function replaceTempSet(workoutData: WorkoutSession, exerciseId: string, tempId: string, realSet: WorkoutSet): WorkoutSession {
+		return {
+			...workoutData,
+			workout_exercise: workoutData.workout_exercise?.map((e) =>
+				e.id === exerciseId
+					? { ...e, workout_set: e.workout_set?.map(s => s.id === tempId ? realSet : s) }
+					: e
+			)
+		};
+	}
+
+	// Remove temp exercise on failure
+	function removeTempExercise(workoutData: WorkoutSession, tempId: string): WorkoutSession {
+		return {
+			...workoutData,
+			workout_exercise: workoutData.workout_exercise?.filter(e => e.id !== tempId)
+		};
+	}
+
+	// Replace temp with real exercise
+	function replaceTempExercise(workoutData: WorkoutSession, tempId: string, realExercise: WorkoutExercise): WorkoutSession {
+		return {
+			...workoutData,
+			workout_exercise: workoutData.workout_exercise?.map(e => e.id === tempId ? { ...realExercise, workout_set: realExercise.workout_set || [] } : e)
+		};
+	}
+
 	// Filter exercises for add modal
 	let filteredExercises = $derived(
 		searchQuery.trim() === ''
@@ -84,6 +129,32 @@
 		if (!workout) return;
 
 		const orderIndex = workout.workout_exercise?.length || 0;
+		const tempId = generateTempId();
+
+		// Create optimistic exercise
+		const tempExercise: WorkoutExercise = {
+			id: tempId,
+			workout_session_id: workoutId,
+			exercise_id: exercise.id,
+			name_snapshot: exercise.name,
+			notes: null,
+			is_completed: false,
+			order_index: orderIndex,
+			workout_set: [],
+			created_at: new Date().toISOString()
+		};
+
+		// Optimistic update - update UI immediately
+		workout = {
+			...workout,
+			workout_exercise: [
+				...(workout.workout_exercise || []),
+				tempExercise
+			]
+		};
+
+		showAddExercise = false;
+		searchQuery = '';
 
 		try {
 			const result = await postAction('add-exercise', {
@@ -99,26 +170,29 @@
 			}
 
 			if (result.type === 'failure') {
+				// Revert on failure - remove temp exercise
+				workout = removeTempExercise(workout, tempId);
 				errorMessage = String(result.data?.error ?? 'Failed to add exercise.');
 				return;
 			}
 
-			if (result.type !== 'success') return;
+			if (result.type !== 'success') {
+				// Remove temp exercise if not success
+				workout = removeTempExercise(workout, tempId);
+				return;
+			}
 
 			const newWorkoutExercise = result.data?.workoutExercise as WorkoutExercise | undefined;
 			if (newWorkoutExercise) {
-				workout = {
-					...workout,
-					workout_exercise: [
-						...(workout.workout_exercise || []),
-						{ ...newWorkoutExercise, workout_set: newWorkoutExercise.workout_set || [] },
-					]
-				};
+				// Replace temp with real exercise
+				workout = replaceTempExercise(workout, tempId, newWorkoutExercise);
+			} else {
+				// Remove temp exercise if no real exercise returned
+				workout = removeTempExercise(workout, tempId);
 			}
-
-			showAddExercise = false;
-			searchQuery = '';
 		} catch (error) {
+			// Revert on error - remove temp exercise
+			workout = removeTempExercise(workout, tempId);
 			errorMessage = error instanceof Error ? error.message : 'Failed to add exercise.';
 		}
 	}
@@ -130,8 +204,38 @@
 			return;
 		}
 
+		if (!workout) return;
+
+		const orderIndex = workout.workout_exercise?.length || 0;
+		const tempId = generateTempId();
+
+		// Create optimistic exercise
+		const tempExercise: WorkoutExercise = {
+			id: tempId,
+			workout_session_id: workoutId,
+			exercise_id: tempId, // Temporary, will be replaced
+			name_snapshot: trimmedName,
+			notes: null,
+			is_completed: false,
+			order_index: orderIndex,
+			workout_set: [],
+			created_at: new Date().toISOString()
+		};
+
+		// Optimistic update - update UI immediately
+		workout = {
+			...workout,
+			workout_exercise: [
+				...(workout.workout_exercise || []),
+				tempExercise
+			]
+		};
+
+		newExerciseName = '';
+		showAddExercise = false;
+		searchQuery = '';
+
 		try {
-			const orderIndex = workout?.workout_exercise?.length || 0;
 			const result = await postAction('create-exercise', {
 				workout_id: workoutId,
 				name: trimmedName,
@@ -145,30 +249,36 @@
 			}
 
 			if (result.type === 'failure') {
+				// Revert on failure - remove temp exercise
+				workout = removeTempExercise(workout, tempId);
 				errorMessage = String(result.data?.error ?? 'Failed to create exercise.');
 				return;
 			}
 
-			if (result.type !== 'success') return;
+			if (result.type !== 'success') {
+				// Remove temp exercise if not success
+				workout = removeTempExercise(workout, tempId);
+				return;
+			}
 
 			const createdExercise = result.data?.exercise as Exercise | undefined;
 			const newWorkoutExercise = result.data?.workoutExercise as WorkoutExercise | undefined;
+			
+			// Add to available exercises
 			if (createdExercise && !availableExercises.some((ex) => ex.id === createdExercise.id)) {
 				availableExercises = [createdExercise, ...availableExercises];
 			}
-			if (newWorkoutExercise && workout) {
-				workout = {
-					...workout,
-					workout_exercise: [
-						...(workout.workout_exercise || []),
-						{ ...newWorkoutExercise, workout_set: newWorkoutExercise.workout_set || [] }
-					]
-				};
+			
+			// Replace temp with real exercise
+			if (newWorkoutExercise) {
+				workout = replaceTempExercise(workout, tempId, newWorkoutExercise);
+			} else {
+				// Remove temp exercise if no real exercise returned
+				workout = removeTempExercise(workout, tempId);
 			}
-			newExerciseName = '';
-			showAddExercise = false;
-			searchQuery = '';
 		} catch (error) {
+			// Revert on error - remove temp exercise
+			workout = removeTempExercise(workout, tempId);
 			errorMessage = error instanceof Error ? error.message : 'Failed to create exercise.';
 		}
 	}
@@ -187,6 +297,27 @@
 		if (!exercise) return;
 
 		const orderIndex = exercise.workout_set?.length || 0;
+		const tempId = generateTempId();
+
+		// Create optimistic set
+		const tempSet: WorkoutSet = {
+			id: tempId,
+			workout_exercise_id: exerciseId,
+			reps: 10,
+			weight: null,
+			order_index: orderIndex,
+			created_at: new Date().toISOString()
+		};
+
+		// Optimistic update - update UI immediately
+		workout = {
+			...workout,
+			workout_exercise: workout.workout_exercise?.map((e) =>
+				e.id === exerciseId
+					? { ...e, workout_set: [...(e.workout_set || []), tempSet] }
+					: e
+			)
+		};
 
 		try {
 			const result = await postAction('add-set', {
@@ -202,29 +333,119 @@
 			}
 
 			if (result.type === 'failure') {
+				// Revert on failure - remove temp set
+				workout = removeTempSet(workout, exerciseId, tempId);
 				errorMessage = String(result.data?.error ?? 'Failed to add set.');
 				return;
 			}
 
-			if (result.type !== 'success') return;
-
-			const newSet = result.data?.set as WorkoutSet | undefined;
-			if (!newSet) {
+			if (result.type !== 'success') {
+				// Remove temp set if not success
+				workout = removeTempSet(workout, exerciseId, tempId);
 				return;
 			}
 
-			// Update local state
-			workout = {
-				...workout,
-				workout_exercise: workout.workout_exercise?.map((e) =>
-					e.id === exerciseId
-						? { ...e, workout_set: [...(e.workout_set || []), newSet] }
-						: e,
-				),
-			};
+			const realSet = result.data?.set as WorkoutSet | undefined;
+			if (realSet) {
+				// Replace temp with real set
+				workout = replaceTempSet(workout, exerciseId, tempId, realSet);
+			} else {
+				// Remove temp set if no real set returned
+				workout = removeTempSet(workout, exerciseId, tempId);
+			}
 		} catch (error) {
+			// Revert on error - remove temp set
+			workout = removeTempSet(workout, exerciseId, tempId);
 			errorMessage = error instanceof Error ? error.message : 'Failed to add set.';
 		}
+	}
+
+	// Debounce timeouts for set updates (per set ID)
+	let updateSetTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
+	// Store previous values for potential revert (per set ID)
+	let previousSetValues: Map<string, { reps: number; weight: number | null }> = new Map();
+
+	function handleSetChange(set: WorkoutSet, field: 'reps' | 'weight', value: string) {
+		if (!workout) return;
+
+		// Store previous value for potential revert (only if not already stored)
+		if (!previousSetValues.has(set.id)) {
+			previousSetValues.set(set.id, { reps: set.reps, weight: set.weight });
+		}
+
+		// Update UI immediately (optimistic)
+		const updatedSet = {
+			...set,
+			[field]: field === 'reps' ? parseInt(value) || 0 : parseWeight(value)
+		};
+
+		// Update the set in workout state
+		workout = {
+			...workout,
+			workout_exercise: workout.workout_exercise?.map((e) =>
+				e.id === set.workout_exercise_id
+					? { ...e, workout_set: e.workout_set?.map(s => s.id === set.id ? updatedSet : s) }
+					: e
+			)
+		};
+
+		// Debounce server sync
+		const existingTimeout = updateSetTimeouts.get(set.id);
+		if (existingTimeout) {
+			clearTimeout(existingTimeout);
+		}
+
+		updateSetTimeouts.set(set.id, setTimeout(() => syncSetToServer(updatedSet), 500));
+	}
+
+	async function syncSetToServer(set: WorkoutSet) {
+		const previousValues = previousSetValues.get(set.id);
+
+		try {
+			const result = await postAction('update-set', {
+				set_id: set.id,
+				reps: String(set.reps),
+				weight: typeof set.weight === 'number' ? String(set.weight) : ''
+			});
+
+			if (result.type === 'redirect') {
+				await goto(result.location);
+				return;
+			}
+
+			if (result.type === 'failure') {
+				// Revert on failure
+				if (previousValues && workout) {
+					workout = {
+						...workout,
+						workout_exercise: workout.workout_exercise?.map((e) =>
+							e.id === set.workout_exercise_id
+								? { ...e, workout_set: e.workout_set?.map(s => s.id === set.id ? { ...s, ...previousValues } : s) }
+								: e
+						)
+					};
+				}
+				errorMessage = String(result.data?.error ?? 'Failed to update set.');
+			}
+
+			// Clear previous values on success
+			previousSetValues.delete(set.id);
+		} catch (error) {
+			// Revert on error
+			if (previousValues && workout) {
+				workout = {
+					...workout,
+					workout_exercise: workout.workout_exercise?.map((e) =>
+						e.id === set.workout_exercise_id
+							? { ...e, workout_set: e.workout_set?.map(s => s.id === set.id ? { ...s, ...previousValues } : s) }
+							: e
+					)
+				};
+			}
+			errorMessage = error instanceof Error ? error.message : 'Failed to update set.';
+		}
+
+		updateSetTimeouts.delete(set.id);
 	}
 
 	async function handleUpdateSet(set: WorkoutSet) {
@@ -258,8 +479,14 @@
 	async function handleToggleComplete() {
 		if (!workout) return;
 
+		// Store previous state for potential revert
+		const previousState = workout.is_completed;
+		const nextState = !previousState;
+
+		// Optimistic update - update UI immediately
+		workout = { ...workout, is_completed: nextState };
+
 		try {
-			const nextState = !workout.is_completed;
 			const result = await postAction('toggle-workout-complete', {
 				workout_id: workoutId,
 				is_completed: String(nextState)
@@ -271,12 +498,14 @@
 			}
 
 			if (result.type === 'failure') {
+				// Revert on failure
+				workout = { ...workout, is_completed: previousState };
 				errorMessage = String(result.data?.error ?? 'Failed to update workout.');
 				return;
 			}
-
-			workout = { ...workout, is_completed: nextState };
 		} catch (error) {
+			// Revert on error
+			workout = { ...workout, is_completed: previousState };
 			errorMessage = error instanceof Error ? error.message : 'Failed to update workout.';
 		}
 	}
@@ -284,7 +513,18 @@
 	async function handleToggleExerciseComplete(exercise: WorkoutExercise) {
 		if (!workout) return;
 
-		const newState = !exercise.is_completed;
+		// Store previous state for potential revert
+		const previousState = exercise.is_completed;
+		const newState = !previousState;
+
+		// Optimistic update - update UI immediately
+		workout = {
+			...workout,
+			workout_exercise: workout.workout_exercise?.map((e) =>
+				e.id === exercise.id ? { ...e, is_completed: newState } : e
+			),
+		};
+
 		try {
 			const result = await postAction('toggle-exercise-complete', {
 				workout_exercise_id: exercise.id,
@@ -297,18 +537,24 @@
 			}
 
 			if (result.type === 'failure') {
+				// Revert on failure
+				workout = {
+					...workout,
+					workout_exercise: workout.workout_exercise?.map((e) =>
+						e.id === exercise.id ? { ...e, is_completed: previousState } : e
+					),
+				};
 				errorMessage = String(result.data?.error ?? 'Failed to update exercise.');
 				return;
 			}
-
-			// Update local state
+		} catch (error) {
+			// Revert on error
 			workout = {
 				...workout,
 				workout_exercise: workout.workout_exercise?.map((e) =>
-					e.id === exercise.id ? { ...e, is_completed: newState } : e
+					e.id === exercise.id ? { ...e, is_completed: previousState } : e
 				),
 			};
-		} catch (error) {
 			errorMessage = error instanceof Error ? error.message : 'Failed to update exercise.';
 		}
 	}
@@ -577,10 +823,7 @@
 												type="number"
 												min="1"
 												value={set.reps}
-												onchange={(e) => {
-													set.reps = parseInt(e.currentTarget.value) || 1;
-													handleUpdateSet(set);
-												}}
+												oninput={(e) => handleSetChange(set, 'reps', e.currentTarget.value)}
 												class="input w-20 py-1.5 text-center text-sm"
 											/>
 											<input
@@ -588,10 +831,7 @@
 												min="0"
 												step="0.5"
 												value={getWeightDisplay(set.weight)}
-												onchange={(e) => {
-													set.weight = parseWeight(e.currentTarget.value);
-													handleUpdateSet(set);
-												}}
+												oninput={(e) => handleSetChange(set, 'weight', e.currentTarget.value)}
 												placeholder="--"
 												class="input w-20 py-1.5 text-center text-sm"
 											/>

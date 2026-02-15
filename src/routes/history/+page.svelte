@@ -30,22 +30,35 @@
 	async function toggleComplete(event: Event, workout: WorkoutSession) {
 		event.preventDefault();
 		event.stopPropagation();
+
+		// Store previous state for potential revert
+		const previousState = workout.is_completed;
+		const nextState = !previousState;
+
+		// Optimistic update - update UI immediately
+		workouts = workouts.map((w) =>
+			w.id === workout.id ? { ...w, is_completed: nextState } : w,
+		);
+
 		try {
-			const nextState = !workout.is_completed;
 			const result = await postAction('toggle-complete', {
 				workout_id: workout.id,
 				is_completed: String(nextState)
 			});
 
 			if (result.type === 'failure') {
+				// Revert on failure
+				workouts = workouts.map((w) =>
+					w.id === workout.id ? { ...w, is_completed: previousState } : w,
+				);
 				errorMessage = String(result.data?.error ?? 'Failed to update workout.');
 				return;
 			}
-
-			workouts = workouts.map((w) =>
-				w.id === workout.id ? { ...w, is_completed: nextState } : w,
-			);
 		} catch (error) {
+			// Revert on error
+			workouts = workouts.map((w) =>
+				w.id === workout.id ? { ...w, is_completed: previousState } : w,
+			);
 			errorMessage = error instanceof Error ? error.message : 'Failed to update workout.';
 		}
 	}
