@@ -1,14 +1,16 @@
 import { BaseRepository } from './base.repository';
-import type { Exercise } from '$lib/types';
+import type { Exercise, ExerciseType } from '$lib/types';
 
 type ExerciseInsert = {
 	name: string;
 	notes?: string | null;
+	exercise_type?: ExerciseType;
 };
 
 type ExerciseUpdate = {
 	name?: string;
 	notes?: string | null;
+	exercise_type?: ExerciseType;
 };
 
 /**
@@ -24,7 +26,7 @@ export class ExerciseRepository extends BaseRepository {
 
 		const { data, error } = await this.supabase
 			.from('exercise')
-			.select('id,user_id,name,notes,created_at')
+			.select('id,user_id,name,notes,exercise_type,created_at')
 			.eq('user_id', userId)
 			.order('created_at', { ascending: false });
 
@@ -45,7 +47,7 @@ export class ExerciseRepository extends BaseRepository {
 
 		const { data, error } = await this.supabase
 			.from('exercise')
-			.select('id,user_id,name,notes,created_at')
+			.select('id,user_id,name,notes,exercise_type,created_at')
 			.eq('id', id)
 			.eq('user_id', userId)
 			.single();
@@ -70,9 +72,10 @@ export class ExerciseRepository extends BaseRepository {
 			.insert({
 				name: payload.name,
 				notes: payload.notes ?? null,
-				user_id: userId
+				user_id: userId,
+				exercise_type: payload.exercise_type ?? 'strength'
 			})
-			.select('id,user_id,name,notes,created_at')
+			.select('id,user_id,name,notes,exercise_type,created_at')
 			.single();
 
 		if (error) {
@@ -93,13 +96,14 @@ export class ExerciseRepository extends BaseRepository {
 		const updateData: Record<string, unknown> = {};
 		if (payload.name !== undefined) updateData.name = payload.name;
 		if (payload.notes !== undefined) updateData.notes = payload.notes;
+		if (payload.exercise_type !== undefined) updateData.exercise_type = payload.exercise_type;
 
 		const { data, error } = await this.supabase
 			.from('exercise')
 			.update(updateData)
 			.eq('id', id)
 			.eq('user_id', userId)
-			.select('id,user_id,name,notes,created_at')
+			.select('id,user_id,name,notes,exercise_type,created_at')
 			.single();
 
 		if (error) {

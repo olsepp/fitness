@@ -47,11 +47,14 @@
 			selectedExercises.map((exercise, exerciseIndex) => ({
 				exercise_id: exercise.exerciseId,
 				name_snapshot: exercise.nameSnapshot,
+				exercise_type: exercise.exerciseType,
 				notes: exercise.notes ?? null,
 				order_index: exerciseIndex,
 				sets: exercise.sets.map((set, setIndex) => ({
 					reps: Number(set.reps),
 					weight: typeof set.weight === 'number' ? set.weight : null,
+					calories: typeof set.calories === 'number' ? set.calories : null,
+					distance: typeof set.distance === 'number' ? set.distance : null,
 					order_index: setIndex,
 				}))
 			}))
@@ -62,6 +65,7 @@
 		exercise: Exercise;
 		exerciseId: string;
 		nameSnapshot: string;
+		exerciseType: 'strength' | 'cardio';
 		notes: string | null;
 		sets: NewWorkoutSet[];
 	}
@@ -69,6 +73,8 @@
 	interface NewWorkoutSet {
 		reps: number;
 		weight: number | null;
+		calories: number | null;
+		distance: number | null;
 	}
 
 	// Helper to format weight for input display
@@ -82,29 +88,38 @@
 		return isNaN(parsed) || value.trim() === '' ? null : parsed;
 	}
 
+	// Helper to parse number from input
+	function parseNumber(value: string): number | null {
+		const parsed = parseFloat(value);
+		return isNaN(parsed) || value.trim() === '' ? null : parsed;
+	}
+
 	function formatDateToYYYYMMDD(date: Date): string {
 		return date.toISOString().split('T')[0];
 	}
 
 	// Filter exercises based on search query
 	let filteredExercises = $derived(
-		searchQuery.trim() === ''
-			? availableExercises
-			: availableExercises.filter((ex) =>
-					ex.name.toLowerCase().includes(searchQuery.toLowerCase()),
-				),
+		availableExercises.filter((exercise) =>
+			exercise.name.toLowerCase().includes(searchQuery.toLowerCase()),
+		),
 	);
 
 	// Get exercises already added to workout
 	let addedExerciseIds = $derived(new Set(selectedExercises.map((e) => e.exerciseId)));
 
 	async function handleAddExercise(exercise: Exercise) {
+		const isCardio = exercise.exercise_type === 'cardio';
 		const newWorkoutExercise: NewWorkoutExercise = {
 			exercise,
 			exerciseId: exercise.id,
 			nameSnapshot: exercise.name,
+			exerciseType: exercise.exercise_type || 'strength',
 			notes: null,
-			sets: [{ reps: 10, weight: null }],
+			sets: [isCardio 
+				? { reps: 0, weight: null, calories: null, distance: null }
+				: { reps: 10, weight: null, calories: null, distance: null }
+			],
 		};
 		selectedExercises = [...selectedExercises, newWorkoutExercise];
 		showAddExercise = false;
@@ -142,9 +157,13 @@
 	}
 
 	function handleAddSet(exerciseIndex: number) {
+		const exercise = selectedExercises[exerciseIndex];
+		const isCardio = exercise.exerciseType === 'cardio';
 		selectedExercises[exerciseIndex].sets = [
 			...selectedExercises[exerciseIndex].sets,
-			{ reps: 10, weight: null },
+			isCardio 
+				? { reps: 0, weight: null, calories: null, distance: null }
+				: { reps: 10, weight: null, calories: null, distance: null }
 		];
 	}
 
@@ -284,32 +303,38 @@
 					<!-- Or create new -->
 					<div class="border-t border-pink-200 pt-3">
 						<p class="mb-2 text-xs text-pink-500">Or create a new exercise:</p>
-				<div class="flex gap-2">
-					<input
-						type="text"
-						name="exercise_name"
-						form="create-exercise-form"
-						bind:value={newExerciseName}
-						placeholder="New exercise name..."
-						class="input flex-1 text-sm"
-						required
-					/>
-					<input
-						type="hidden"
-						name="exercise_notes"
-						form="create-exercise-form"
-						value=""
-					/>
-					<button
-						type="submit"
-						form="create-exercise-form"
-						disabled={isCreatingExercise}
-						class="btn-secondary text-sm"
-					>
-						{isCreatingExercise ? 'Creating...' : 'Create'}
-					</button>
-				</div>
-			</div>
+						<div class="mb-3">
+							<select name="exercise_type" form="create-exercise-form" class="input text-sm mb-2">
+								<option value="strength">Strength</option>
+								<option value="cardio">Cardio</option>
+							</select>
+						</div>
+						<div class="flex gap-2">
+							<input
+								type="text"
+								name="exercise_name"
+								form="create-exercise-form"
+								bind:value={newExerciseName}
+								placeholder="New exercise name..."
+								class="input flex-1 text-sm"
+								required
+							/>
+							<input
+								type="hidden"
+								name="exercise_notes"
+								form="create-exercise-form"
+								value=""
+							/>
+							<button
+								type="submit"
+								form="create-exercise-form"
+								disabled={isCreatingExercise}
+								class="btn-secondary text-sm"
+							>
+								{isCreatingExercise ? 'Creating...' : 'Create'}
+							</button>
+						</div>
+					</div>
 
 					<button
 						type="button"
@@ -351,49 +376,94 @@
 
 							<!-- Sets -->
 							<div class="space-y-2 p-4">
-								<div class="flex items-center gap-4 text-xs font-medium text-pink-500">
-									<span class="w-12">Set</span>
-									<span class="w-20">Reps</span>
-									<span class="w-20">Weight</span>
-									<span class="w-8"></span>
-								</div>
-								{#each exercise.sets as set, setIndex}
-									<div class="flex items-center gap-4">
-										<span class="w-12 text-sm text-pink-400">{setIndex + 1}</span>
-										<input
-											type="number"
-											min="1"
-											bind:value={set.reps}
-											class="input w-20 py-1.5 text-center text-sm"
-										/>
-										<input
-											type="number"
-											min="0"
-											step="0.5"
-											value={getWeightDisplay(set.weight)}
-											oninput={(e) => (set.weight = parseWeight(e.currentTarget.value))}
-											placeholder="--"
-											class="input w-20 py-1.5 text-center text-sm"
-										/>
-										<button
-											type="button"
-											onclick={() => handleRemoveSet(exerciseIndex, setIndex)}
-											class="flex h-8 w-8 items-center justify-center rounded-lg text-pink-400 hover:bg-pink-100 hover:text-red-500"
-										>
-											<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-												<line x1="18" y1="6" x2="6" y2="18" />
-												<line x1="6" y1="6" x2="18" y2="18" />
-											</svg>
-										</button>
+								{#if exercise.exerciseType === 'cardio'}
+									<div class="flex items-center gap-4 text-xs font-medium text-pink-500">
+										<span class="w-12">Set</span>
+										<span class="w-24">Calories</span>
+										<span class="w-24">Distance (m)</span>
+										<span class="w-8"></span>
 									</div>
-								{/each}
-								<button
-									type="button"
-									onclick={() => handleAddSet(exerciseIndex)}
-									class="mt-2 text-sm font-medium text-pink-500 hover:text-pink-700"
-								>
-									+ Add Set
-								</button>
+									{#each exercise.sets as set, setIndex}
+										<div class="flex items-center gap-4">
+											<span class="w-12 text-sm text-pink-400">{setIndex + 1}</span>
+											<input
+												type="number"
+												min="0"
+												bind:value={set.calories}
+												placeholder="kcal"
+												class="input w-24 py-1.5 text-center text-sm"
+											/>
+											<input
+												type="number"
+												min="0"
+												bind:value={set.distance}
+												placeholder="m"
+												class="input w-24 py-1.5 text-center text-sm"
+											/>
+											<button
+												type="button"
+												onclick={() => handleRemoveSet(exerciseIndex, setIndex)}
+												class="flex h-8 w-8 items-center justify-center rounded-lg text-pink-400 hover:bg-pink-100 hover:text-red-500"
+											>
+												<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+													<line x1="18" y1="6" x2="6" y2="18" />
+													<line x1="6" y1="6" x2="18" y2="18" />
+												</svg>
+											</button>
+										</div>
+									{/each}
+									<button
+										type="button"
+										onclick={() => handleAddSet(exerciseIndex)}
+										class="mt-2 text-sm font-medium text-pink-500 hover:text-pink-700"
+									>
+										+ Add Set
+									</button>
+								{:else}
+									<div class="flex items-center gap-4 text-xs font-medium text-pink-500">
+										<span class="w-12">Set</span>
+										<span class="w-20">Reps</span>
+										<span class="w-20">Weight</span>
+										<span class="w-8"></span>
+									</div>
+									{#each exercise.sets as set, setIndex}
+										<div class="flex items-center gap-4">
+											<span class="w-12 text-sm text-pink-400">{setIndex + 1}</span>
+											<input
+												type="number"
+												min="1"
+												bind:value={set.reps}
+												class="input w-20 py-1.5 text-center text-sm"
+											/>
+											<input
+												type="number"
+												min="0"
+												step="0.5"
+												value={getWeightDisplay(set.weight)}
+												oninput={(e) => (set.weight = parseWeight(e.currentTarget.value))}
+												placeholder="--"
+												class="input w-20 py-1.5 text-center text-sm"
+											/>
+											<button
+												type="button"
+												onclick={() => handleRemoveSet(exerciseIndex, setIndex)}
+												class="flex h-8 w-8 items-center justify-center rounded-lg text-pink-400 hover:bg-pink-100 hover:text-red-500"
+											>
+												<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+													<line x1="18" y1="6" x2="6" y2="18" />
+													<line x1="6" y1="6" x2="18" y2="18" />
+												</svg>
+											</button>
+										</div>
+									{/each}
+									<button
+										type="button"
+										onclick={() => handleAddSet(exerciseIndex)}
+										class="mt-2 text-sm font-medium text-pink-500 hover:text-pink-700"
+									>
+										+ Add Set
+									</button>
+								{/if}
 							</div>
 						</div>
 					{/each}

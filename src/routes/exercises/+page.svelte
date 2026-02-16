@@ -19,6 +19,7 @@
 	let showAddForm = $state(false);
 	let name = $state('');
 	let notes = $state('');
+	let exerciseType: 'strength' | 'cardio' = $state('strength');
 	let errorMessage = $state<string | null>(form?.error ?? null);
 	let submitting = $state(false);
 
@@ -71,6 +72,8 @@
 				}
 				name = '';
 				notes = '';
+				exerciseType = 'strength';
+				exerciseType = 'strength';
 				showAddForm = false;
 				return;
 			}
@@ -196,6 +199,14 @@
 					class="input"
 					required
 				/>
+				<select
+					name="exercise_type"
+					bind:value={exerciseType}
+					class="input"
+				>
+					<option value="strength">Strength</option>
+					<option value="cardio">Cardio</option>
+				</select>
 				<input
 					type="text"
 					name="notes"
@@ -219,6 +230,7 @@
 						showAddForm = false;
 						name = '';
 						notes = '';
+						exerciseType = 'strength';
 						errorMessage = null;
 					}}
 					class="btn-secondary"

@@ -25,6 +25,10 @@ export const actions: Actions = {
 		const formData = await event.request.formData();
 		const name = (formData.get('name') as string | null) ?? '';
 		const notes = (formData.get('notes') as string | null) ?? '';
+		const exerciseTypeRaw = (formData.get('exercise_type') as string | null) ?? 'strength';
+
+		const validTypes = ['strength', 'cardio'];
+		const exerciseType = validTypes.includes(exerciseTypeRaw || '') ? exerciseTypeRaw as 'strength' | 'cardio' : 'strength';
 
 		if (!session) {
 			return fail(401, {
@@ -47,7 +51,8 @@ export const actions: Actions = {
 		try {
 			const exercise = await repos.exercises.create({
 				name: name.trim(),
-				notes: notes.trim() || null
+				notes: notes.trim() || null,
+				exercise_type: exerciseType
 			});
 
 			return { success: true, action: 'create', exercise };

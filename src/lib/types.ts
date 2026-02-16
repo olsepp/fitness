@@ -5,11 +5,14 @@ export type WorkoutType = {
 	icon: string | null;
 };
 
+export type ExerciseType = 'strength' | 'cardio';
+
 export type Exercise = {
 	id: string;
 	user_id: string;
 	name: string;
 	notes: string | null;
+	exercise_type: ExerciseType;
 	created_at: string;
 };
 
@@ -18,6 +21,8 @@ export type WorkoutSet = {
 	workout_exercise_id: string;
 	reps: number;
 	weight: number | null;
+	calories: number | null;
+	distance: number | null;
 	order_index: number;
 	created_at: string;
 };
@@ -31,6 +36,7 @@ export type WorkoutExercise = {
 	is_completed: boolean;
 	order_index: number;
 	workout_set?: WorkoutSet[];
+	exercise_type?: ExerciseType;
 	created_at: string;
 };
 

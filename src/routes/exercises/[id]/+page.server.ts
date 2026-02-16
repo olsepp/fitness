@@ -34,6 +34,10 @@ export const actions: Actions = {
 		const formData = await event.request.formData();
 		const name = formData.get('name') as string;
 		const notes = formData.get('notes') as string | null;
+		const exerciseTypeRaw = formData.get('exercise_type') as string | null;
+
+		const validTypes = ['strength', 'cardio'];
+		const exerciseType = validTypes.includes(exerciseTypeRaw || '') ? exerciseTypeRaw as 'strength' | 'cardio' : 'strength';
 
 		if (!name || !name.trim()) {
 			return fail(400, {
@@ -51,7 +55,8 @@ export const actions: Actions = {
 		try {
 			await repos.exercises.update(id, {
 				name: name.trim(),
-				notes: notes?.trim() || null
+				notes: notes?.trim() || null,
+				exercise_type: exerciseType
 			});
 
 			throw redirect(303, '/exercises');
