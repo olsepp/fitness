@@ -33,6 +33,12 @@ export const load: PageServerLoad = async (event) => {
 		const sortedExercises = workout.workout_exercise?.sort((a, b) => a.order_index - b.order_index) || [];
 		sortedExercises.forEach((exercise) => {
 			exercise.workout_set = exercise.workout_set?.sort((a, b) => a.order_index - b.order_index) || [];
+			// Map exercise_type from nested exercise object if present
+			// The Supabase query returns nested exercise data as 'exercise' property
+			const nestedExercise = (exercise as unknown as { exercise?: { exercise_type?: string } }).exercise;
+			if (nestedExercise?.exercise_type) {
+				exercise.exercise_type = nestedExercise.exercise_type as 'strength' | 'cardio';
+			}
 		});
 
 		return {
@@ -100,6 +106,7 @@ export const actions: Actions = {
 		const workoutId = (formData.get('workout_id') as string | null) ?? '';
 		const name = (formData.get('name') as string | null) ?? '';
 		const notes = (formData.get('notes') as string | null) ?? '';
+		const exerciseType = (formData.get('exercise_type') as string | null) ?? 'strength';
 		const orderIndex = Number(formData.get('order_index') ?? 0);
 
 		if (!workoutId) {
@@ -109,6 +116,9 @@ export const actions: Actions = {
 		if (!name.trim()) {
 			return fail(400, { error: 'Exercise name is required.' });
 		}
+
+		const validTypes = ['strength', 'cardio'];
+		const type = validTypes.includes(exerciseType) ? exerciseType : 'strength';
 
 		const repos = createRepositories(event);
 
@@ -122,7 +132,8 @@ export const actions: Actions = {
 			// Create the exercise
 			const exercise = await repos.exercises.create({
 				name: name.trim(),
-				notes: notes.trim() || null
+				notes: notes.trim() || null,
+				exercise_type: type as 'strength' | 'cardio'
 			});
 
 			// Add to workout
@@ -149,25 +160,40 @@ export const actions: Actions = {
 
 		const formData = await event.request.formData();
 		const workoutExerciseId = (formData.get('workout_exercise_id') as string | null) ?? '';
-		const reps = Number(formData.get('reps') ?? 0);
+		const repsRaw = formData.get('reps');
 		const weightRaw = formData.get('weight');
+		const caloriesRaw = formData.get('calories');
+		const distanceRaw = formData.get('distance');
 		const orderIndex = Number(formData.get('order_index') ?? 0);
 
 		if (!workoutExerciseId) {
 			return fail(400, { error: 'Missing workout exercise id.' });
 		}
-		if (!Number.isFinite(reps) || reps <= 0) {
-			return fail(400, { error: 'Invalid reps value.' });
-		}
+
+		// Parse values - allow null for all numeric fields
+		const reps = repsRaw === null || repsRaw === '' ? null : Number(repsRaw);
 		const weight = weightRaw === null || weightRaw === '' ? null : Number(weightRaw);
+		const calories = caloriesRaw === null || caloriesRaw === '' ? null : Number(caloriesRaw);
+		const distance = distanceRaw === null || distanceRaw === '' ? null : Number(distanceRaw);
+
+		// Validation: at least one of reps, calories, or distance should be provided
+		const hasReps = reps !== null && Number.isFinite(reps) && reps > 0;
+		const hasCalories = calories !== null && Number.isFinite(calories) && calories > 0;
+		const hasDistance = distance !== null && Number.isFinite(distance) && distance > 0;
+
+		if (!hasReps && !hasCalories && !hasDistance) {
+			return fail(400, { error: 'Please enter reps or calories/distance.' });
+		}
 
 		const repos = createRepositories(event);
 
 		try {
 			const set = await repos.workoutSets.add({
 				workout_exercise_id: workoutExerciseId,
-				reps,
+				reps: hasReps ? reps : 0,
 				weight: Number.isFinite(weight) ? weight : null,
+				calories: hasCalories ? calories : null,
+				distance: hasDistance ? distance : null,
 				order_index: Number.isFinite(orderIndex) ? orderIndex : 0
 			});
 
@@ -186,23 +212,38 @@ export const actions: Actions = {
 
 		const formData = await event.request.formData();
 		const setId = (formData.get('set_id') as string | null) ?? '';
-		const reps = Number(formData.get('reps') ?? 0);
+		const repsRaw = formData.get('reps');
 		const weightRaw = formData.get('weight');
+		const caloriesRaw = formData.get('calories');
+		const distanceRaw = formData.get('distance');
 
 		if (!setId) {
 			return fail(400, { error: 'Missing set id.' });
 		}
-		if (!Number.isFinite(reps) || reps <= 0) {
-			return fail(400, { error: 'Invalid reps value.' });
-		}
+
+		// Parse values - allow null for all numeric fields
+		const reps = repsRaw === null || repsRaw === '' ? null : Number(repsRaw);
 		const weight = weightRaw === null || weightRaw === '' ? null : Number(weightRaw);
+		const calories = caloriesRaw === null || caloriesRaw === '' ? null : Number(caloriesRaw);
+		const distance = distanceRaw === null || distanceRaw === '' ? null : Number(distanceRaw);
+
+		// Validation: at least one of reps, calories, or distance should be provided
+		const hasReps = reps !== null && Number.isFinite(reps) && reps > 0;
+		const hasCalories = calories !== null && Number.isFinite(calories) && calories > 0;
+		const hasDistance = distance !== null && Number.isFinite(distance) && distance > 0;
+
+		if (!hasReps && !hasCalories && !hasDistance) {
+			return fail(400, { error: 'Please enter reps or calories/distance.' });
+		}
 
 		const repos = createRepositories(event);
 
 		try {
 			const set = await repos.workoutSets.update(setId, {
-				reps,
-				weight: Number.isFinite(weight) ? weight : null
+				reps: hasReps ? reps : 0,
+				weight: Number.isFinite(weight) ? weight : null,
+				calories: hasCalories ? calories : null,
+				distance: hasDistance ? distance : null
 			});
 
 			return { success: true, set };

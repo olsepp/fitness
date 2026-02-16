@@ -17,6 +17,7 @@
 	let exercise = $derived(data.exercise ?? null);
 	let name = $state('');
 	let notes = $state('');
+	let exerciseType: 'strength' | 'cardio' = $state('strength');
 	let isLoading = $state(false);
 	let isSaving = $state(false);
 	let errorMessage = $state<string | null>(form?.error ?? null);
@@ -27,6 +28,7 @@
 		if (exercise?.id && exercise.id !== lastExerciseId) {
 			name = exercise.name;
 			notes = exercise.notes || '';
+			exerciseType = exercise.exercise_type || 'strength';
 			lastExerciseId = exercise.id;
 		}
 	});
@@ -100,6 +102,18 @@
 						placeholder="Bench press"
 						required
 					/>
+				</label>
+
+				<label class="flex flex-col gap-2 text-sm">
+					<span class="font-medium text-pink-700">Exercise Type</span>
+					<select
+						name="exercise_type"
+						bind:value={exerciseType}
+						class="input"
+					>
+						<option value="strength">Strength</option>
+						<option value="cardio">Cardio</option>
+					</select>
 				</label>
 
 				<label class="flex flex-col gap-2 text-sm">

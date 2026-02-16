@@ -4,7 +4,7 @@ import type { WorkoutSet } from '$lib/types';
 /**
  * Shared select query for workout sets.
  */
-const SET_SELECT = ['id', 'workout_exercise_id', 'reps', 'weight', 'order_index', 'created_at'].join(
+const SET_SELECT = ['id', 'workout_exercise_id', 'reps', 'weight', 'calories', 'distance', 'order_index', 'created_at'].join(
 	','
 );
 
@@ -12,12 +12,16 @@ type WorkoutSetInsert = {
 	workout_exercise_id: string;
 	reps: number;
 	weight?: number | null;
+	calories?: number | null;
+	distance?: number | null;
 	order_index: number;
 };
 
 type WorkoutSetUpdate = {
 	reps?: number;
 	weight?: number | null;
+	calories?: number | null;
+	distance?: number | null;
 	order_index?: number;
 };
 
@@ -116,6 +120,8 @@ export class WorkoutSetRepository extends BaseRepository {
 				workout_exercise_id: payload.workout_exercise_id,
 				reps: payload.reps,
 				weight: payload.weight ?? null,
+				calories: payload.calories ?? null,
+				distance: payload.distance ?? null,
 				order_index: payload.order_index
 			})
 			.select(SET_SELECT)
@@ -141,6 +147,8 @@ export class WorkoutSetRepository extends BaseRepository {
 		const updateData: Record<string, unknown> = {};
 		if (payload.reps !== undefined) updateData.reps = payload.reps;
 		if (payload.weight !== undefined) updateData.weight = payload.weight;
+		if (payload.calories !== undefined) updateData.calories = payload.calories;
+		if (payload.distance !== undefined) updateData.distance = payload.distance;
 		if (payload.order_index !== undefined) updateData.order_index = payload.order_index;
 
 		const { data, error } = await this.supabase
