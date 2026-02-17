@@ -7,6 +7,10 @@
 	let workouts: WorkoutSession[] = $derived(data.workouts || []);
 	let errorMessage = $state<string | null>(null);
 
+	// Current displayed month for navigation
+	let currentMonth = $state(new Date());
+	let currentMonthName = $derived(currentMonth.toLocaleDateString('en-US', { month: 'long' }));
+
 	// Stats
 	let totalWorkouts = $derived(workouts.length);
 	let completedWorkouts = $derived(workouts.filter((w) => w.is_completed).length);
@@ -44,17 +48,41 @@
 		return Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'None';
 	});
 
-	function getWeekDates(): { date: Date; day: string; isToday: boolean; hasWorkout: boolean }[] {
-		const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+	function getMonthDates(): { date: Date; day: string; isToday: boolean; hasWorkout: boolean }[] {
 		const today = new Date();
+		const year = currentMonth.getFullYear();
+		const month = currentMonth.getMonth();
+		
+		// First day of the month
+		const firstDay = new Date(year, month, 1);
+		// Last day of the month
+		const lastDay = new Date(year, month + 1, 0);
+		
+		// Week starts from Monday
+		const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 		const result = [];
-
-		for (let i = 0; i < 7; i++) {
-			const date = new Date(today);
-			date.setDate(today.getDate() - today.getDay() + i);
+		
+		// Get the day of week for the first day (0 = Sunday, 1 = Monday, etc.)
+		// Convert to Monday-based (0 = Monday, 6 = Sunday)
+		let startDayOfWeek = firstDay.getDay() - 1;
+		if (startDayOfWeek < 0) startDayOfWeek = 6; // Sunday becomes 6
+		
+		// Add empty cells for days before the first day of the month
+		for (let i = 0; i < startDayOfWeek; i++) {
+			result.push({
+				date: new Date(year, month, -startDayOfWeek + i + 1),
+				day: '',
+				isToday: false,
+				hasWorkout: false,
+			});
+		}
+		
+		// Add all days of the month
+		for (let day = 1; day <= lastDay.getDate(); day++) {
+			const date = new Date(year, month, day);
 			const dateStr = date.toISOString().split('T')[0];
 			const hasWorkout = workouts.some((w) => w.date === dateStr);
-
+			
 			result.push({
 				date,
 				day: days[date.getDay()],
@@ -62,11 +90,23 @@
 				hasWorkout,
 			});
 		}
-
+		
 		return result;
 	}
 
-	let weekDates = $derived(getWeekDates());
+	function goToPreviousMonth() {
+		currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+	}
+
+	function goToNextMonth() {
+		currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
+	}
+
+	function goToCurrentMonth() {
+		currentMonth = new Date();
+	}
+
+	let monthDates = $derived(getMonthDates());
 
 	function getTotalExercises(workout: WorkoutSession): number {
 		return workout.workout_exercise?.length || 0;
@@ -129,28 +169,79 @@
 		</div>
 	</div>
 
-	<!-- Week Calendar -->
+	<!-- Month Calendar -->
 	<div class="card p-4 sm:p-6">
-		<h2 class="mb-3 sm:mb-4 font-display text-base sm:text-lg font-semibold text-pink-800">This Week 📅</h2>
-		<div class="flex justify-between gap-1 min-w-0 overflow-hidden">
-			{#each weekDates as day}
-				<div class="flex flex-1 flex-col items-center gap-1 min-w-0">
-					<span class="text-xs font-medium text-pink-400 truncate max-w-[2rem]">{day.day}</span>
+		<div class="mb-3 sm:mb-4 flex items-center justify-between">
+			<h2 class="font-display text-base sm:text-lg font-semibold text-pink-800">Month View 📅</h2>
+			<div class="flex items-center gap-1">
+				<button
+					onclick={goToPreviousMonth}
+					class="flex h-8 w-8 items-center justify-center rounded-full bg-pink-50 text-pink-500 transition-colors hover:bg-pink-100 hover:text-pink-600"
+					aria-label="Previous month"
+				>
+					<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<polyline points="15 18 9 12 15 6" />
+					</svg>
+				</button>
+				<button
+					onclick={goToCurrentMonth}
+					class="min-w-[5rem] px-2 py-1 text-xs font-medium text-pink-500 transition-colors hover:text-pink-600"
+				>
+					{currentMonthName}
+				</button>
+				<button
+					onclick={goToNextMonth}
+					class="flex h-8 w-8 items-center justify-center rounded-full bg-pink-50 text-pink-500 transition-colors hover:bg-pink-100 hover:text-pink-600"
+					aria-label="Next month"
+				>
+					<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<polyline points="9 18 15 12 9 6" />
+					</svg>
+				</button>
+			</div>
+		</div>
+		<!-- Day headers -->
+		<div class="mb-2 grid grid-cols-7 gap-1 text-center">
+			{#each ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as dayName}
+				<span class="text-xs font-medium text-pink-400">{dayName}</span>
+			{/each}
+		</div>
+		<!-- Month grid -->
+		<div class="grid grid-cols-7 gap-1">
+			{#each monthDates as day}
+				<div class="flex flex-col items-center gap-1 min-w-0">
 					<div
-						class="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-full text-xs sm:text-sm font-medium transition-all flex-shrink-0
+						class="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full text-xs sm:text-sm font-medium transition-all
 						{day.isToday
 							? 'bg-gradient-to-br from-pink-500 to-pink-600 text-white shadow-lg shadow-pink-500/30'
-							: day.hasWorkout
+							: day.hasWorkout && day.date.getMonth() === new Date().getMonth()
 								? 'bg-gradient-to-br from-mauve-400 to-mauve-500 text-white'
-								: 'bg-pink-50 text-pink-400'}"
+								: day.date.getMonth() === new Date().getMonth()
+									? 'bg-pink-50 text-pink-400'
+									: 'bg-pink-25 text-pink-200'}"
 					>
 						{day.date.getDate()}
 					</div>
-					{#if day.hasWorkout}
-						<div class="h-1.5 w-1.5 rounded-full bg-pink-400 animate-pulse-soft"></div>
+					{#if day.hasWorkout && day.date.getMonth() === new Date().getMonth()}
+						<div class="h-1.5 w-1.5 rounded-full bg-pink-400"></div>
 					{/if}
 				</div>
 			{/each}
+		</div>
+		<!-- Legend -->
+		<div class="mt-4 flex flex-wrap items-center justify-center gap-4 text-xs">
+			<div class="flex items-center gap-1.5">
+				<div class="h-3 w-3 rounded-full bg-gradient-to-br from-pink-500 to-pink-600"></div>
+				<span class="text-pink-500">Today</span>
+			</div>
+			<div class="flex items-center gap-1.5">
+				<div class="h-3 w-3 rounded-full bg-gradient-to-br from-mauve-400 to-mauve-500"></div>
+				<span class="text-pink-500">Workout done</span>
+			</div>
+			<div class="flex items-center gap-1.5">
+				<div class="h-3 w-3 rounded-full bg-pink-50 border border-pink-200"></div>
+				<span class="text-pink-500">No workout</span>
+			</div>
 		</div>
 	</div>
 
