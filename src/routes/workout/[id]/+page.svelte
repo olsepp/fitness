@@ -840,7 +840,7 @@
 									{#if exercise.exercise_type === 'cardio'}
 										<div class="flex items-center gap-4 text-xs font-medium text-pink-500">
 											<span class="w-12">Set</span>
-											<span class="w-24">Calories</span>
+											<span class="w-20">Weight</span>
 											<span class="w-24">Distance (m)</span>
 											<span class="w-8"></span>
 										</div>
@@ -850,10 +850,11 @@
 												<input
 													type="number"
 													min="0"
-													value={set.calories ?? ''}
-													oninput={(e) => handleSetChange(set, 'calories', e.currentTarget.value)}
-													placeholder="kcal"
-													class="input w-24 py-1.5 text-center text-sm"
+													step="0.5"
+													value={getWeightDisplay(set.weight)}
+													oninput={(e) => handleSetChange(set, 'weight', e.currentTarget.value)}
+													placeholder="kg"
+													class="input w-20 py-1.5 text-center text-sm"
 												/>
 												<input
 													type="number"
