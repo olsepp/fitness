@@ -80,7 +80,11 @@
 		// Add all days of the month
 		for (let day = 1; day <= lastDay.getDate(); day++) {
 			const date = new Date(year, month, day);
-			const dateStr = date.toISOString().split('T')[0];
+			// Use local date string instead of toISOString to avoid timezone shift
+			const yearStr = date.getFullYear();
+			const monthStr = String(date.getMonth() + 1).padStart(2, '0');
+			const dayStr = String(date.getDate()).padStart(2, '0');
+			const dateStr = `${yearStr}-${monthStr}-${dayStr}`;
 			const hasWorkout = workouts.some((w) => w.date === dateStr);
 			
 			result.push({
