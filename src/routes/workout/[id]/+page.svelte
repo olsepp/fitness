@@ -309,14 +309,38 @@
 		const orderIndex = exercise.workout_set?.length || 0;
 		const tempId = generateTempId();
 
-		// Create optimistic set - cardio exercises start with null reps
+		// Get the last set to copy its values
+		const existingSets = exercise.workout_set || [];
+		const lastSet = existingSets.length > 0 ? existingSets[existingSets.length - 1] : null;
+
+		// Copy values from the last set exactly as they are
+		let newReps: number;
+		let newWeight: number | null;
+		let newCalories: number | null;
+		let newDistance: number | null;
+
+		if (lastSet) {
+			// Copy all values exactly from the previous set
+			newReps = lastSet.reps;
+			newWeight = lastSet.weight;
+			newCalories = lastSet.calories;
+			newDistance = lastSet.distance;
+		} else {
+			// Use defaults for first set (all null/0 for cardio)
+			newReps = isCardio ? 0 : 10;
+			newWeight = null;
+			newCalories = null;
+			newDistance = null;
+		}
+
+		// Create optimistic set with copied values
 		const tempSet: WorkoutSet = {
 			id: tempId,
 			workout_exercise_id: exerciseId,
-			reps: isCardio ? 0 : 10,
-			weight: null,
-			calories: null,
-			distance: null,
+			reps: newReps ?? 0,
+			weight: newWeight,
+			calories: newCalories,
+			distance: newDistance,
 			order_index: orderIndex,
 			created_at: new Date().toISOString()
 		};
@@ -337,13 +361,15 @@
 				order_index: String(orderIndex)
 			};
 
+			// Send the copied values to the server
 			if (isCardio) {
-				// For cardio, send empty values (user will fill in calories or distance)
-				params.reps = '';
-				params.weight = '';
+				params.reps = String(newReps ?? 0);
+				params.weight = typeof newWeight === 'number' ? String(newWeight) : '';
+				params.calories = typeof newCalories === 'number' ? String(newCalories) : '';
+				params.distance = typeof newDistance === 'number' ? String(newDistance) : '';
 			} else {
-				params.reps = '10';
-				params.weight = '';
+				params.reps = String(newReps ?? 10);
+				params.weight = typeof newWeight === 'number' ? String(newWeight) : '';
 			}
 
 			const result = await postAction('add-set', params);
