@@ -82,10 +82,26 @@
 		return weight === null || weight === undefined ? '' : String(weight);
 	}
 
+	// Helper to format reps for input display
+	function getRepsDisplay(reps: number): string {
+		return reps === null || reps === undefined ? '' : String(reps);
+	}
+
+	// Helper to format distance for input display
+	function getDistanceDisplay(distance: number | null): string {
+		return distance === null || distance === undefined ? '' : String(distance);
+	}
+
 	// Helper to parse weight from input
 	function parseWeight(value: string): number | null {
 		const parsed = parseFloat(value);
 		return isNaN(parsed) || value.trim() === '' ? null : parsed;
+	}
+
+	// Helper to parse reps from input
+	function parseReps(value: string): number {
+		const parsed = parseInt(value, 10);
+		return isNaN(parsed) || value.trim() === '' ? 10 : parsed;
 	}
 
 	// Helper to parse number from input
@@ -110,18 +126,21 @@
 
 	async function handleAddExercise(exercise: Exercise) {
 		const isCardio = exercise.exercise_type === 'cardio';
+		const initialSet = isCardio 
+			? { reps: 0, weight: null, calories: null, distance: null }
+			: { reps: 10, weight: null, calories: null, distance: null };
+		
 		const newWorkoutExercise: NewWorkoutExercise = {
 			exercise,
 			exerciseId: exercise.id,
 			nameSnapshot: exercise.name,
 			exerciseType: exercise.exercise_type || 'strength',
 			notes: null,
-			sets: [isCardio 
-				? { reps: 0, weight: null, calories: null, distance: null }
-				: { reps: 10, weight: null, calories: null, distance: null }
-			],
+			sets: [initialSet]
 		};
-		selectedExercises = [...selectedExercises, newWorkoutExercise];
+		
+		// Use push instead of spread to maintain reactivity
+		selectedExercises.push(newWorkoutExercise);
 		showAddExercise = false;
 		searchQuery = '';
 	}
@@ -158,19 +177,41 @@
 
 	function handleAddSet(exerciseIndex: number) {
 		const exercise = selectedExercises[exerciseIndex];
-		const isCardio = exercise.exerciseType === 'cardio';
-		selectedExercises[exerciseIndex].sets = [
-			...selectedExercises[exerciseIndex].sets,
-			isCardio 
-				? { reps: 0, weight: null, calories: null, distance: null }
-				: { reps: 10, weight: null, calories: null, distance: null }
-		];
+		if (!exercise) {
+			return;
+		}
+		
+		let newSet: NewWorkoutSet;
+		
+		if (exercise.sets.length > 0) {
+			const lastSet = exercise.sets[exercise.sets.length - 1];
+			
+			// Copy all values from the previous set exactly as they are
+			newSet = {
+				reps: lastSet.reps,
+				weight: lastSet.weight,
+				calories: lastSet.calories,
+				distance: lastSet.distance
+			};
+		} else {
+			// Use defaults for first set
+			newSet = {
+				reps: 10,
+				weight: null,
+				calories: null,
+				distance: null
+			};
+		}
+		
+		// Push to the $state array directly
+		exercise.sets.push(newSet);
 	}
 
 	function handleRemoveSet(exerciseIndex: number, setIndex: number) {
-		selectedExercises[exerciseIndex].sets = selectedExercises[exerciseIndex].sets.filter(
-			(_, i) => i !== setIndex,
-		);
+		const exercise = selectedExercises[exerciseIndex];
+		if (exercise && exercise.sets) {
+			exercise.sets.splice(setIndex, 1);
+		}
 	}
 
 	const workoutEnhance: SubmitFunction = () => {
@@ -390,14 +431,16 @@
 												type="number"
 												min="0"
 												step="0.5"
-												bind:value={set.weight}
+												value={getWeightDisplay(set.weight)}
+											oninput={(e) => (set.weight = parseWeight(e.currentTarget.value))}
 												placeholder="kg"
 												class="input w-20 py-1.5 text-center text-sm"
 											/>
 											<input
 												type="number"
 												min="0"
-												bind:value={set.distance}
+												value={getDistanceDisplay(set.distance)}
+											oninput={(e) => (set.distance = parseNumber(e.currentTarget.value))}
 												placeholder="m"
 												class="input w-24 py-1.5 text-center text-sm"
 											/>
@@ -433,7 +476,8 @@
 											<input
 												type="number"
 												min="1"
-												bind:value={set.reps}
+												value={getRepsDisplay(set.reps)}
+											oninput={(e) => (set.reps = parseReps(e.currentTarget.value))}
 												class="input w-20 py-1.5 text-center text-sm"
 											/>
 											<input
