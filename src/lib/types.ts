@@ -21,7 +21,6 @@ export type WorkoutSet = {
 	workout_exercise_id: string;
 	reps: number;
 	weight: number | null;
-	calories: number | null;
 	distance: number | null;
 	order_index: number;
 	created_at: string;

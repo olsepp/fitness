@@ -36,6 +36,7 @@
 	let selectedExercises: NewWorkoutExercise[] = $state([]);
 	let showAddExercise = $state(false);
 	let newExerciseName = $state('');
+	let newExerciseType: 'strength' | 'cardio' = $state('strength');
 
 	// UI state
 	let isCreatingExercise = $state(false);
@@ -53,7 +54,6 @@
 				sets: exercise.sets.map((set, setIndex) => ({
 					reps: Number(set.reps),
 					weight: typeof set.weight === 'number' ? set.weight : null,
-					calories: typeof set.calories === 'number' ? set.calories : null,
 					distance: typeof set.distance === 'number' ? set.distance : null,
 					order_index: setIndex,
 				}))
@@ -73,7 +73,6 @@
 	interface NewWorkoutSet {
 		reps: number;
 		weight: number | null;
-		calories: number | null;
 		distance: number | null;
 	}
 
@@ -127,8 +126,8 @@
 	async function handleAddExercise(exercise: Exercise) {
 		const isCardio = exercise.exercise_type === 'cardio';
 		const initialSet = isCardio 
-			? { reps: 0, weight: null, calories: null, distance: null }
-			: { reps: 10, weight: null, calories: null, distance: null };
+			? { reps: 0, weight: null, distance: null }
+			: { reps: 10, weight: null, distance: null };
 		
 		const newWorkoutExercise: NewWorkoutExercise = {
 			exercise,
@@ -160,6 +159,7 @@
 					lastCreatedExerciseId = created.id;
 				}
 				newExerciseName = '';
+				newExerciseType = 'strength';
 				return;
 			}
 			if (result.type === 'failure') {
@@ -190,7 +190,6 @@
 			newSet = {
 				reps: lastSet.reps,
 				weight: lastSet.weight,
-				calories: lastSet.calories,
 				distance: lastSet.distance
 			};
 		} else {
@@ -198,7 +197,6 @@
 			newSet = {
 				reps: 10,
 				weight: null,
-				calories: null,
 				distance: null
 			};
 		}
@@ -345,7 +343,7 @@
 					<div class="border-t border-pink-200 pt-3">
 						<p class="mb-2 text-xs text-pink-500">Or create a new exercise:</p>
 						<div class="mb-3">
-							<select name="exercise_type" form="create-exercise-form" class="input text-sm mb-2">
+							<select name="exercise_type" form="create-exercise-form" bind:value={newExerciseType} class="input text-sm mb-2">
 								<option value="strength">Strength</option>
 								<option value="cardio">Cardio</option>
 							</select>

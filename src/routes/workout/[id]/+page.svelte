@@ -19,6 +19,7 @@
 	// Add exercise modal
 	let showAddExercise = $state(false);
 	let newExerciseName = $state('');
+	let newExerciseType: 'strength' | 'cardio' = $state('strength');
 
 	// UI state
 	let isSaving = $state(false);
@@ -191,8 +192,11 @@
 
 			const newWorkoutExercise = result.data?.workoutExercise as WorkoutExercise | undefined;
 			if (newWorkoutExercise) {
-				// Replace temp with real exercise
-				workout = replaceTempExercise(workout, tempId, newWorkoutExercise);
+				// Get exercise_type from availableExercises to preserve the type
+				const originalExercise = availableExercises.find(e => e.id === exercise.id);
+				const exerciseType = originalExercise?.exercise_type || 'strength';
+				// Replace temp with real exercise, preserving exercise_type
+				workout = replaceTempExercise(workout, tempId, { ...newWorkoutExercise, exercise_type: exerciseType });
 			} else {
 				// Remove temp exercise if no real exercise returned
 				workout = removeTempExercise(workout, tempId);
@@ -217,7 +221,7 @@
 		const tempId = generateTempId();
 
 		// Create optimistic exercise
-		const exerciseType = 'strength';
+		const exerciseType = newExerciseType;
 		const tempExercise: WorkoutExercise = {
 			id: tempId,
 			workout_session_id: workoutId,
@@ -249,6 +253,7 @@
 				workout_id: workoutId,
 				name: trimmedName,
 				notes: '',
+				exercise_type: newExerciseType,
 				order_index: String(orderIndex)
 			});
 
@@ -323,7 +328,6 @@
 			// Copy all values exactly from the previous set
 			newReps = lastSet.reps;
 			newWeight = lastSet.weight;
-			newCalories = lastSet.calories;
 			newDistance = lastSet.distance;
 		} else {
 			// Use defaults for first set (all null/0 for cardio)
@@ -339,7 +343,6 @@
 			workout_exercise_id: exerciseId,
 			reps: newReps ?? 0,
 			weight: newWeight,
-			calories: newCalories,
 			distance: newDistance,
 			order_index: orderIndex,
 			created_at: new Date().toISOString()
@@ -358,14 +361,14 @@
 		try {
 			const params: Record<string, string> = {
 				workout_exercise_id: exerciseId,
-				order_index: String(orderIndex)
+				order_index: String(orderIndex),
+				exercise_type: isCardio ? 'cardio' : 'strength'
 			};
 
 			// Send the copied values to the server
 			if (isCardio) {
 				params.reps = String(newReps ?? 0);
 				params.weight = typeof newWeight === 'number' ? String(newWeight) : '';
-				params.calories = typeof newCalories === 'number' ? String(newCalories) : '';
 				params.distance = typeof newDistance === 'number' ? String(newDistance) : '';
 			} else {
 				params.reps = String(newReps ?? 10);
@@ -410,14 +413,14 @@
 	// Debounce timeouts for set updates (per set ID)
 	let updateSetTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
 	// Store previous values for potential revert (per set ID)
-	let previousSetValues: Map<string, { reps: number; weight: number | null; calories: number | null; distance: number | null }> = new Map();
+	let previousSetValues: Map<string, { reps: number; weight: number | null; distance: number | null }> = new Map();
 
-	function handleSetChange(set: WorkoutSet, field: 'reps' | 'weight' | 'calories' | 'distance', value: string) {
+	function handleSetChange(set: WorkoutSet, field: 'reps' | 'weight' | 'distance', value: string) {
 		if (!workout) return;
 
 		// Store previous value for potential revert (only if not already stored)
 		if (!previousSetValues.has(set.id)) {
-			previousSetValues.set(set.id, { reps: set.reps, weight: set.weight, calories: set.calories, distance: set.distance });
+			previousSetValues.set(set.id, { reps: set.reps, weight: set.weight, distance: set.distance });
 		}
 
 		// Update UI immediately (optimistic)
@@ -452,12 +455,11 @@
 
 		try {
 			const result = await postAction('update-set', {
-				set_id: set.id,
-				reps: String(set.reps),
-				weight: typeof set.weight === 'number' ? String(set.weight) : '',
-				calories: typeof set.calories === 'number' ? String(set.calories) : '',
-				distance: typeof set.distance === 'number' ? String(set.distance) : ''
-			});
+					set_id: set.id,
+					reps: String(set.reps),
+					weight: typeof set.weight === 'number' ? String(set.weight) : '',
+					distance: typeof set.distance === 'number' ? String(set.distance) : ''
+				});
 
 			if (result.type === 'redirect') {
 				await goto(result.location);
@@ -502,12 +504,11 @@
 	async function handleUpdateSet(set: WorkoutSet) {
 		try {
 			const result = await postAction('update-set', {
-				set_id: set.id,
-				reps: String(set.reps),
-				weight: typeof set.weight === 'number' ? String(set.weight) : '',
-				calories: typeof set.calories === 'number' ? String(set.calories) : '',
-				distance: typeof set.distance === 'number' ? String(set.distance) : ''
-			});
+					set_id: set.id,
+					reps: String(set.reps),
+					weight: typeof set.weight === 'number' ? String(set.weight) : '',
+					distance: typeof set.distance === 'number' ? String(set.distance) : ''
+				});
 
 			if (result.type === 'redirect') {
 				await goto(result.location);
@@ -788,6 +789,12 @@
 
 						<div class="border-t border-pink-200 pt-3">
 							<p class="mb-2 text-xs text-pink-500">Or create a new exercise:</p>
+							<div class="mb-2">
+								<select name="exercise_type" bind:value={newExerciseType} class="input text-sm">
+									<option value="strength">Strength</option>
+									<option value="cardio">Cardio</option>
+								</select>
+							</div>
 							<div class="flex gap-2">
 								<input
 									type="text"

@@ -162,9 +162,9 @@ export const actions: Actions = {
 		const workoutExerciseId = (formData.get('workout_exercise_id') as string | null) ?? '';
 		const repsRaw = formData.get('reps');
 		const weightRaw = formData.get('weight');
-		const caloriesRaw = formData.get('calories');
 		const distanceRaw = formData.get('distance');
 		const orderIndex = Number(formData.get('order_index') ?? 0);
+		const exerciseType = (formData.get('exercise_type') as string | null) ?? 'strength';
 
 		if (!workoutExerciseId) {
 			return fail(400, { error: 'Missing workout exercise id.' });
@@ -173,17 +173,18 @@ export const actions: Actions = {
 		// Parse values - allow null for all numeric fields
 		const reps = repsRaw === null || repsRaw === '' ? null : Number(repsRaw);
 		const weight = weightRaw === null || weightRaw === '' ? null : Number(weightRaw);
-		const calories = caloriesRaw === null || caloriesRaw === '' ? null : Number(caloriesRaw);
 		const distance = distanceRaw === null || distanceRaw === '' ? null : Number(distanceRaw);
 
-		// Validation: at least one of reps, calories, or distance should be provided
+		// Validation: cardio exercises can have empty values initially, strength needs reps
+		const isCardio = exerciseType === 'cardio';
 		const hasReps = reps !== null && Number.isFinite(reps) && reps > 0;
-		const hasCalories = calories !== null && Number.isFinite(calories) && calories > 0;
 		const hasDistance = distance !== null && Number.isFinite(distance) && distance > 0;
 
-		if (!hasReps && !hasCalories && !hasDistance) {
-			return fail(400, { error: 'Please enter reps or calories/distance.' });
+		if (!isCardio && !hasReps) {
+			return fail(400, { error: 'Please enter reps.' });
 		}
+
+		// For cardio, allow empty initial set (user will fill in distance)
 
 		const repos = createRepositories(event);
 
@@ -192,7 +193,6 @@ export const actions: Actions = {
 				workout_exercise_id: workoutExerciseId,
 				reps: hasReps ? reps : 0,
 				weight: Number.isFinite(weight) ? weight : null,
-				calories: hasCalories ? calories : null,
 				distance: hasDistance ? distance : null,
 				order_index: Number.isFinite(orderIndex) ? orderIndex : 0
 			});
@@ -214,7 +214,6 @@ export const actions: Actions = {
 		const setId = (formData.get('set_id') as string | null) ?? '';
 		const repsRaw = formData.get('reps');
 		const weightRaw = formData.get('weight');
-		const caloriesRaw = formData.get('calories');
 		const distanceRaw = formData.get('distance');
 
 		if (!setId) {
@@ -224,25 +223,20 @@ export const actions: Actions = {
 		// Parse values - allow null for all numeric fields
 		const reps = repsRaw === null || repsRaw === '' ? null : Number(repsRaw);
 		const weight = weightRaw === null || weightRaw === '' ? null : Number(weightRaw);
-		const calories = caloriesRaw === null || caloriesRaw === '' ? null : Number(caloriesRaw);
 		const distance = distanceRaw === null || distanceRaw === '' ? null : Number(distanceRaw);
 
-		// Validation: at least one of reps, calories, or distance should be provided
+		// For update, allow setting any values (including empty)
+		// The add-set validation ensures initial set has valid values
 		const hasReps = reps !== null && Number.isFinite(reps) && reps > 0;
-		const hasCalories = calories !== null && Number.isFinite(calories) && calories > 0;
 		const hasDistance = distance !== null && Number.isFinite(distance) && distance > 0;
 
-		if (!hasReps && !hasCalories && !hasDistance) {
-			return fail(400, { error: 'Please enter reps or calories/distance.' });
-		}
-
+		// Allow updates even with empty values - user can clear fields
 		const repos = createRepositories(event);
 
 		try {
 			const set = await repos.workoutSets.update(setId, {
 				reps: hasReps ? reps : 0,
 				weight: Number.isFinite(weight) ? weight : null,
-				calories: hasCalories ? calories : null,
 				distance: hasDistance ? distance : null
 			});
 

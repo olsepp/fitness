@@ -92,7 +92,7 @@ export const actions: Actions = {
 			name_snapshot: string;
 			notes?: string | null;
 			order_index?: number;
-			sets: Array<{ reps: number; weight?: number | null; calories?: number | null; distance?: number | null; order_index?: number }>;
+			sets: Array<{ reps: number; weight?: number | null; distance?: number | null; order_index?: number }>;
 		}>;
 
 		try {
@@ -138,25 +138,23 @@ export const actions: Actions = {
 
 				for (const [setIndex, set] of exercise.sets.entries()) {
 					const reps = Number(set.reps);
-					const calories = typeof set.calories === 'number' ? set.calories : null;
 					const distance = typeof set.distance === 'number' ? set.distance : null;
 
-					// For strength: reps required. For cardio: calories or distance required.
-					const isCardio = calories !== null || distance !== null;
+					// For strength: reps required. For cardio: distance required.
+					const isCardio = distance !== null;
 
 					if (!isCardio && (!Number.isFinite(reps) || reps <= 0)) {
 						return fail(400, { error: `Invalid reps value for "${exercise.name_snapshot}".` });
 					}
 
-					if (isCardio && calories === null && distance === null) {
-						return fail(400, { error: `Please enter calories or distance for "${exercise.name_snapshot}".` });
+					if (isCardio && distance === null) {
+						return fail(400, { error: `Please enter distance for "${exercise.name_snapshot}".` });
 					}
 
 					await repos.workoutSets.add({
 						workout_exercise_id: workoutExercise.id,
 						reps: isCardio ? 0 : reps,
 						weight: set.weight ?? null,
-						calories: calories,
 						distance: distance,
 						order_index: set.order_index ?? setIndex
 					});

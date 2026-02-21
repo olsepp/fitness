@@ -13,7 +13,7 @@ const SESSION_SELECT = [
 	'is_completed',
 	'created_at',
 	'workout_type(id,key,name,icon)',
-	'workout_exercise(id,workout_session_id,exercise_id,name_snapshot,notes,is_completed,order_index,created_at,exercise(exercise_type),workout_set(id,workout_exercise_id,reps,weight,calories,distance,order_index,created_at))'
+	'workout_exercise(id,workout_session_id,exercise_id,name_snapshot,notes,is_completed,order_index,created_at,exercise(exercise_type),workout_set(id,workout_exercise_id,reps,weight,distance,order_index,created_at))'
 ].join(',');
 
 type WorkoutSessionInsert = {
