@@ -427,6 +427,7 @@
 											<span class="w-12 text-sm text-pink-400">{setIndex + 1}</span>
 											<input
 												type="number"
+												inputmode="decimal"
 												min="0"
 												step="0.5"
 												value={getWeightDisplay(set.weight)}
@@ -436,6 +437,7 @@
 											/>
 											<input
 												type="number"
+												inputmode="decimal"
 												min="0"
 												value={getDistanceDisplay(set.distance)}
 											oninput={(e) => (set.distance = parseNumber(e.currentTarget.value))}
@@ -473,6 +475,7 @@
 											<span class="w-12 text-sm text-pink-400">{setIndex + 1}</span>
 											<input
 												type="number"
+												inputmode="numeric"
 												min="1"
 												value={getRepsDisplay(set.reps)}
 											oninput={(e) => (set.reps = parseReps(e.currentTarget.value))}
@@ -480,6 +483,7 @@
 											/>
 											<input
 												type="number"
+												inputmode="decimal"
 												min="0"
 												step="0.5"
 												value={getWeightDisplay(set.weight)}

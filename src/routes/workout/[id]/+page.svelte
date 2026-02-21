@@ -882,6 +882,7 @@
 												<span class="w-12 text-sm text-pink-400">{index + 1}</span>
 												<input
 													type="number"
+													inputmode="decimal"
 													min="0"
 													step="0.5"
 													value={getWeightDisplay(set.weight)}
@@ -891,6 +892,7 @@
 												/>
 												<input
 													type="number"
+													inputmode="decimal"
 													min="0"
 													value={set.distance ?? ''}
 													oninput={(e) => handleSetChange(set, 'distance', e.currentTarget.value)}
@@ -928,6 +930,7 @@
 												<span class="w-12 text-sm text-pink-400">{index + 1}</span>
 												<input
 													type="number"
+													inputmode="numeric"
 													min="1"
 													value={set.reps}
 													oninput={(e) => handleSetChange(set, 'reps', e.currentTarget.value)}
@@ -935,6 +938,7 @@
 												/>
 												<input
 													type="number"
+													inputmode="decimal"
 													min="0"
 													step="0.5"
 													value={getWeightDisplay(set.weight)}
