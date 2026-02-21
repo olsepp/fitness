@@ -1,6 +1,5 @@
 <script lang="ts">
 	import './layout.css';
-	import favicon from '$lib/assets/favicon.svg';
 	import { supabase } from '$lib/supabaseClient';
 	import { onMount } from 'svelte';
 	import type { Session } from '@supabase/supabase-js';
@@ -39,9 +38,7 @@
 	}
 </script>
 
-<svelte:head>
-	<link rel="icon" href={favicon} />
-</svelte:head>
+
 
 <div class="min-h-screen bg-blush-50 text-pink-900">
 	{#if session}
@@ -52,23 +49,17 @@
 			
 			<div class="relative flex items-center justify-between px-4 py-3 sm:py-4 gap-3 sm:gap-4">
 				<button
-					class="rounded-xl border border-pink-200 bg-pink-50 p-2.5 sm:p-2 text-pink-600 transition-all hover:border-pink-300 hover:bg-pink-100 active:scale-95 flex-shrink-0"
+					class="hamburger-btn lg:hidden rounded-xl border border-pink-200 bg-pink-50/80 p-2.5 sm:p-2 text-pink-600 transition-all duration-200 hover:border-pink-300 hover:bg-pink-100 hover:shadow-md hover:shadow-pink-200/50 active:scale-95 flex-shrink-0 backdrop-blur-sm"
+					class:is-open={menuOpen}
 					aria-label="Toggle navigation"
+					aria-expanded={menuOpen}
 					onclick={toggleMenu}
 				>
-					<svg
-						class="h-5 w-5"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<line x1="3" y1="6" x2="21" y2="6" />
-						<line x1="3" y1="12" x2="21" y2="12" />
-						<line x1="3" y1="18" x2="21" y2="18" />
-					</svg>
+					<span class="hamburger-icon" aria-hidden="true">
+						<span class="bar bar-top"></span>
+						<span class="bar bar-mid"></span>
+						<span class="bar bar-bot"></span>
+					</span>
 				</button>
 				<h1 class="relative text-base sm:text-xl font-semibold tracking-tight flex-1 text-center">
 					<span class="gradient-text font-display">Fitness Tracker</span>
@@ -323,5 +314,52 @@
 
 	.animate-fade-in {
 		animation: fade-in 0.2s ease-out forwards;
+	}
+
+	/* ── Modern animated hamburger icon ── */
+	.hamburger-icon {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+		width: 20px;
+		height: 20px;
+		gap: 0;
+		position: relative;
+	}
+
+	.bar {
+		display: block;
+		width: 18px;
+		height: 2px;
+		border-radius: 2px;
+		background: currentColor;
+		position: absolute;
+		transition:
+			transform 0.35s cubic-bezier(0.23, 1, 0.32, 1),
+			opacity 0.25s ease,
+			top 0.35s cubic-bezier(0.23, 1, 0.32, 1),
+			width 0.35s cubic-bezier(0.23, 1, 0.32, 1);
+		transform-origin: center;
+	}
+
+	/* Resting positions */
+	.bar-top { top: 4px; }
+	.bar-mid { top: 9px; }
+	.bar-bot { top: 14px; width: 12px; }   /* shorter bottom bar for modern look */
+
+	/* Open (X) state */
+	.hamburger-btn.is-open .bar-top {
+		top: 9px;
+		transform: rotate(45deg);
+	}
+	.hamburger-btn.is-open .bar-mid {
+		opacity: 0;
+		transform: scaleX(0);
+	}
+	.hamburger-btn.is-open .bar-bot {
+		top: 9px;
+		width: 18px;
+		transform: rotate(-45deg);
 	}
 </style>
