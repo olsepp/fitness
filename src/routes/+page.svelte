@@ -16,11 +16,15 @@
 	let completedWorkouts = $derived(workouts.filter((w) => w.is_completed).length);
 	let pendingWorkouts = $derived(workouts.filter((w) => !w.is_completed).length);
 
-	// This week's workouts
+	// This week's workouts (week starts on Monday)
 	let thisWeekWorkouts = $derived.by(() => {
 		const now = new Date();
 		const weekStart = new SvelteDate(now);
-		weekStart.setDate(now.getDate() - now.getDay());
+		// getDay() returns 0 for Sunday, 1 for Monday, etc.
+		// Subtract (dayOfWeek - 1) to get Monday, or 6 if Sunday to get previous Monday
+		const dayOfWeek = now.getDay();
+		const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+		weekStart.setDate(now.getDate() - daysFromMonday);
 		weekStart.setHours(0, 0, 0, 0);
 		return workouts.filter((w) => new Date(w.date) >= weekStart);
 	});
