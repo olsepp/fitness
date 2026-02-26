@@ -23,6 +23,8 @@
 
 	// UI state
 	let isSaving = $state(false);
+	let showDeleteConfirm = $state(false);
+	let isDeleting = $state(false);
 	let errorMessage = $state<string | null>(null);
 
 	// Track removed exercises and sets (only deleted on save)
@@ -658,6 +660,37 @@
 	function handleCancel() {
 		goto('/history');
 	}
+
+	async function handleDeleteWorkout() {
+		if (!workout) return;
+
+		isDeleting = true;
+		errorMessage = null;
+
+		try {
+			const result = await postAction('delete-workout', {
+				workout_id: workoutId
+			});
+
+			if (result.type === 'redirect') {
+				await goto(result.location);
+				return;
+			}
+
+			if (result.type === 'failure') {
+				errorMessage = String(result.data?.error ?? 'Failed to delete workout.');
+				showDeleteConfirm = false;
+				return;
+			}
+
+			goto('/history');
+		} catch (error) {
+			errorMessage = error instanceof Error ? error.message : 'Failed to delete workout.';
+			showDeleteConfirm = false;
+		} finally {
+			isDeleting = false;
+		}
+	}
 </script>
 
 <div class="mx-auto max-w-3xl space-y-6 p-4">
@@ -887,7 +920,7 @@
 													step="0.5"
 													value={getWeightDisplay(set.weight)}
 													oninput={(e) => handleSetChange(set, 'weight', e.currentTarget.value)}
-													placeholder="kg"
+													placeholder="kg" lang="en"
 													class="input w-20 py-1.5 text-center text-sm"
 												/>
 												<input
@@ -896,7 +929,7 @@
 													min="0"
 													value={set.distance ?? ''}
 													oninput={(e) => handleSetChange(set, 'distance', e.currentTarget.value)}
-													placeholder="m"
+													placeholder="m" lang="en"
 													class="input w-24 py-1.5 text-center text-sm"
 												/>
 												<button
@@ -943,7 +976,7 @@
 													step="0.5"
 													value={getWeightDisplay(set.weight)}
 													oninput={(e) => handleSetChange(set, 'weight', e.currentTarget.value)}
-													placeholder="--"
+													placeholder="--" lang="en"
 													class="input w-20 py-1.5 text-center text-sm"
 												/>
 												<button
@@ -998,7 +1031,53 @@
 				>
 					Cancel
 				</button>
+				<button
+					type="button"
+					onclick={() => (showDeleteConfirm = true)}
+					disabled={isSaving}
+					class="btn-danger"
+				>
+					Delete Workout
+				</button>
 			</div>
-		</form>
+			</form>
+	{/if}
+
+	<!-- Delete Confirmation Modal -->
+	{#if showDeleteConfirm}
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+			<div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+				<h2 class="mb-2 font-display text-xl font-semibold text-gray-900">Delete Workout?</h2>
+				<p class="mb-6 text-gray-600">
+					Are you sure you want to delete this workout? This action cannot be undone.
+				</p>
+				<div class="flex gap-3">
+					<button
+						type="button"
+						onclick={() => (showDeleteConfirm = false)}
+						disabled={isDeleting}
+						class="btn-secondary flex-1"
+					>
+						Cancel
+					</button>
+					<button
+						type="button"
+						onclick={handleDeleteWorkout}
+						disabled={isDeleting}
+						class="btn-danger flex-1"
+					>
+						{#if isDeleting}
+							<svg class="mr-2 h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<circle cx="12" cy="12" r="10" stroke-opacity="0.25" />
+								<path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round" />
+							</svg>
+							Deleting...
+						{:else}
+							Delete
+						{/if}
+					</button>
+				</div>
+			</div>
+		</div>
 	{/if}
 </div>

@@ -355,5 +355,35 @@ export const actions: Actions = {
 			console.error('Error saving workout:', err);
 			return fail(500, { error: 'Failed to save workout.' });
 		}
+	},
+
+	'delete-workout': async (event) => {
+		const session = await event.locals.getSession();
+		if (!session) {
+			return fail(401, { error: 'Not authenticated' });
+		}
+
+		const formData = await event.request.formData();
+		const workoutId = (formData.get('workout_id') as string | null) ?? '';
+
+		if (!workoutId) {
+			return fail(400, { error: 'Missing workout id.' });
+		}
+
+		const repos = createRepositories(event);
+
+		// Verify workout ownership
+		const workout = await repos.workoutSessions.getById(workoutId);
+		if (!workout) {
+			return fail(403, { error: 'Not authorized to delete this workout.' });
+		}
+
+		try {
+			await repos.workoutSessions.delete(workoutId);
+			return { success: true };
+		} catch (err) {
+			console.error('Error deleting workout:', err);
+			return fail(500, { error: 'Failed to delete workout.' });
+		}
 	}
 };

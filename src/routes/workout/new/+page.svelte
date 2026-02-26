@@ -432,7 +432,7 @@
 												step="0.5"
 												value={getWeightDisplay(set.weight)}
 											oninput={(e) => (set.weight = parseWeight(e.currentTarget.value))}
-												placeholder="kg"
+												placeholder="kg" lang="en"
 												class="input w-20 py-1.5 text-center text-sm"
 											/>
 											<input
@@ -441,7 +441,7 @@
 												min="0"
 												value={getDistanceDisplay(set.distance)}
 											oninput={(e) => (set.distance = parseNumber(e.currentTarget.value))}
-												placeholder="m"
+												placeholder="m" lang="en"
 												class="input w-24 py-1.5 text-center text-sm"
 											/>
 											<button
@@ -488,7 +488,7 @@
 												step="0.5"
 												value={getWeightDisplay(set.weight)}
 												oninput={(e) => (set.weight = parseWeight(e.currentTarget.value))}
-												placeholder="--"
+												placeholder="--" lang="en"
 												class="input w-20 py-1.5 text-center text-sm"
 											/>
 											<button
