@@ -24,6 +24,15 @@
 	// UI state
 	let isSaving = $state(false);
 	let showDeleteConfirm = $state(false);
+
+	// Lock body scroll when delete confirmation modal is open
+	$effect(() => {
+		if (showDeleteConfirm) {
+			document.body.style.overflow = 'hidden';
+		} else {
+			document.body.style.overflow = '';
+		}
+	});
 	let isDeleting = $state(false);
 	let errorMessage = $state<string | null>(null);
 
@@ -37,12 +46,16 @@
 	}
 
 	function parseWeight(value: string): number | null {
-		const parsed = parseFloat(value);
+		// Replace comma with dot for European decimal separators
+		const normalizedValue = value.replace(/,/g, '.');
+		const parsed = parseFloat(normalizedValue);
 		return isNaN(parsed) || value.trim() === '' ? null : parsed;
 	}
 
 	function parseNumber(value: string): number | null {
-		const parsed = parseFloat(value);
+		// Replace comma with dot for European decimal separators
+		const normalizedValue = value.replace(/,/g, '.');
+		const parsed = parseFloat(normalizedValue);
 		return isNaN(parsed) || value.trim() === '' ? null : parsed;
 	}
 
@@ -425,12 +438,15 @@
 			previousSetValues.set(set.id, { reps: set.reps, weight: set.weight, distance: set.distance });
 		}
 
+		// Replace comma with dot for European decimal separators
+		const normalizedValue = value.replace(/,/g, '.');
+
 		// Update UI immediately (optimistic)
 		const updatedSet = {
 			...set,
-			[field]: field === 'reps' ? parseInt(value) || 0 : 
-			          field === 'weight' ? parseWeight(value) : 
-			          parseNumber(value)
+			[field]: field === 'reps' ? parseInt(normalizedValue) || 0 : 
+			          field === 'weight' ? parseWeight(normalizedValue) : 
+			          parseNumber(normalizedValue)
 		};
 
 		// Update the set in workout state
@@ -914,22 +930,19 @@
 											<div class="flex items-center gap-4">
 												<span class="w-12 text-sm text-pink-400">{index + 1}</span>
 												<input
-													type="number"
+													type="text"
 													inputmode="decimal"
-													min="0"
-													step="0.5"
 													value={getWeightDisplay(set.weight)}
-													oninput={(e) => handleSetChange(set, 'weight', e.currentTarget.value)}
-													placeholder="kg" lang="en"
+													oninput={(e) => { const v = e.currentTarget.value.replace(',', '.'); if (v !== e.currentTarget.value) { const pos = (e.currentTarget.selectionStart || 1) - 1 + 1; e.currentTarget.value = v; e.currentTarget.setSelectionRange(pos, pos); } handleSetChange(set, 'weight', v); }}
+													placeholder="kg"
 													class="input w-20 py-1.5 text-center text-sm"
 												/>
 												<input
-													type="number"
+													type="text"
 													inputmode="decimal"
-													min="0"
 													value={set.distance ?? ''}
-													oninput={(e) => handleSetChange(set, 'distance', e.currentTarget.value)}
-													placeholder="m" lang="en"
+													oninput={(e) => { const v = e.currentTarget.value.replace(',', '.'); if (v !== e.currentTarget.value) { const pos = (e.currentTarget.selectionStart || 1) - 1 + 1; e.currentTarget.value = v; e.currentTarget.setSelectionRange(pos, pos); } handleSetChange(set, 'distance', v); }}
+													placeholder="m"
 													class="input w-24 py-1.5 text-center text-sm"
 												/>
 												<button
@@ -970,13 +983,11 @@
 													class="input w-20 py-1.5 text-center text-sm"
 												/>
 												<input
-													type="number"
+													type="text"
 													inputmode="decimal"
-													min="0"
-													step="0.5"
 													value={getWeightDisplay(set.weight)}
-													oninput={(e) => handleSetChange(set, 'weight', e.currentTarget.value)}
-													placeholder="--" lang="en"
+													oninput={(e) => { const v = e.currentTarget.value.replace(',', '.'); if (v !== e.currentTarget.value) { const pos = (e.currentTarget.selectionStart || 1) - 1 + 1; e.currentTarget.value = v; e.currentTarget.setSelectionRange(pos, pos); } handleSetChange(set, 'weight', v); }}
+													placeholder="--"
 													class="input w-20 py-1.5 text-center text-sm"
 												/>
 												<button
@@ -1007,11 +1018,12 @@
 			</div>
 
 			<!-- Actions -->
-			<div class="flex gap-4">
+			<div class="flex flex-col gap-3 sm:flex-row sm:gap-4">
+				<!-- Save button - full width on mobile -->
 				<button
 					type="submit"
 					disabled={isSaving}
-					class="btn-primary flex-1"
+					class="btn-primary flex-1 order-1"
 				>
 					{#if isSaving}
 						<svg class="mr-2 h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1023,30 +1035,44 @@
 						Save Changes
 					{/if}
 				</button>
-				<button
-					type="button"
-					onclick={handleCancel}
-					disabled={isSaving}
-					class="btn-secondary"
-				>
-					Cancel
-				</button>
-				<button
-					type="button"
-					onclick={() => (showDeleteConfirm = true)}
-					disabled={isSaving}
-					class="btn-danger"
-				>
-					Delete Workout
-				</button>
+
+				<!-- Secondary actions row on mobile -->
+				<div class="flex gap-3 order-2 sm:order-3 sm:gap-4">
+					<button
+						type="button"
+						onclick={handleCancel}
+						disabled={isSaving}
+						class="btn-secondary flex-1 sm:flex-initial"
+					>
+						Cancel
+					</button>
+					<button
+						type="button"
+						onclick={() => (showDeleteConfirm = true)}
+						disabled={isSaving}
+						class="btn-danger flex-1 sm:flex-initial"
+					>
+						Delete Workout
+					</button>
+				</div>
 			</div>
 			</form>
 	{/if}
 
-	<!-- Delete Confirmation Modal -->
+	<!-- Delete Confirmation Modal - Full screen overlay for proper viewport centering and coverage -->
 	{#if showDeleteConfirm}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-			<div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+		<!-- Full screen modal overlay - properly centered on viewport -->
+		<div class="fixed inset-0 z-[100] flex items-center justify-center">
+			<!-- Backdrop with click-to-close -->
+			<div 
+				class="absolute inset-0 bg-black/60 cursor-pointer" 
+				onclick={() => (showDeleteConfirm = false)}
+				role="button"
+				tabindex="0"
+				onkeydown={(e) => e.key === 'Escape' && (showDeleteConfirm = false)}
+			></div>
+			<!-- Modal content -->
+			<div class="relative z-10 w-full max-w-md mx-4 rounded-2xl bg-white p-6 shadow-xl">
 				<h2 class="mb-2 font-display text-xl font-semibold text-gray-900">Delete Workout?</h2>
 				<p class="mb-6 text-gray-600">
 					Are you sure you want to delete this workout? This action cannot be undone.
@@ -1080,4 +1106,4 @@
 			</div>
 		</div>
 	{/if}
-</div>
+	</div>

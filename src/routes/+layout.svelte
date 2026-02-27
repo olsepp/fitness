@@ -268,7 +268,7 @@
 			</aside>
 
 			<main class="min-w-0 flex-1">
-				<div class="relative rounded-2xl border border-pink-200 bg-white/60 backdrop-blur-xl shadow-lg shadow-pink-500/10 p-6 lg:p-8">
+				<div class="relative rounded-2xl border border-pink-200 bg-white/60 shadow-lg shadow-pink-500/10 p-6 lg:p-8">
 					{@render children()}
 				</div>
 			</main>
