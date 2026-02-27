@@ -93,7 +93,9 @@
 
 	// Helper to parse weight from input
 	function parseWeight(value: string): number | null {
-		const parsed = parseFloat(value);
+		// Replace comma with dot for European decimal separators
+		const normalizedValue = value.replace(/,/g, '.');
+		const parsed = parseFloat(normalizedValue);
 		return isNaN(parsed) || value.trim() === '' ? null : parsed;
 	}
 
@@ -105,7 +107,9 @@
 
 	// Helper to parse number from input
 	function parseNumber(value: string): number | null {
-		const parsed = parseFloat(value);
+		// Replace comma with dot for European decimal separators
+		const normalizedValue = value.replace(/,/g, '.');
+		const parsed = parseFloat(normalizedValue);
 		return isNaN(parsed) || value.trim() === '' ? null : parsed;
 	}
 
@@ -426,22 +430,19 @@
 										<div class="flex items-center gap-4">
 											<span class="w-12 text-sm text-pink-400">{setIndex + 1}</span>
 											<input
-												type="number"
+												type="text"
 												inputmode="decimal"
-												min="0"
-												step="0.5"
 												value={getWeightDisplay(set.weight)}
-											oninput={(e) => (set.weight = parseWeight(e.currentTarget.value))}
-												placeholder="kg" lang="en"
+												oninput={(e) => { const v = e.currentTarget.value.replace(',', '.'); if (v !== e.currentTarget.value) { const pos = (e.currentTarget.selectionStart || 1) - 1 + 1; e.currentTarget.value = v; e.currentTarget.setSelectionRange(pos, pos); } set.weight = parseWeight(v); }}
+												placeholder="kg"
 												class="input w-20 py-1.5 text-center text-sm"
 											/>
 											<input
-												type="number"
+												type="text"
 												inputmode="decimal"
-												min="0"
 												value={getDistanceDisplay(set.distance)}
-											oninput={(e) => (set.distance = parseNumber(e.currentTarget.value))}
-												placeholder="m" lang="en"
+												oninput={(e) => { const v = e.currentTarget.value.replace(',', '.'); if (v !== e.currentTarget.value) { const pos = (e.currentTarget.selectionStart || 1) - 1 + 1; e.currentTarget.value = v; e.currentTarget.setSelectionRange(pos, pos); } set.distance = parseNumber(v); }}
+												placeholder="m"
 												class="input w-24 py-1.5 text-center text-sm"
 											/>
 											<button
@@ -482,13 +483,11 @@
 												class="input w-20 py-1.5 text-center text-sm"
 											/>
 											<input
-												type="number"
+												type="text"
 												inputmode="decimal"
-												min="0"
-												step="0.5"
 												value={getWeightDisplay(set.weight)}
-												oninput={(e) => (set.weight = parseWeight(e.currentTarget.value))}
-												placeholder="--" lang="en"
+												oninput={(e) => { const v = e.currentTarget.value.replace(',', '.'); if (v !== e.currentTarget.value) { const pos = (e.currentTarget.selectionStart || 1) - 1 + 1; e.currentTarget.value = v; e.currentTarget.setSelectionRange(pos, pos); } set.weight = parseWeight(v); }}
+												placeholder="--"
 												class="input w-20 py-1.5 text-center text-sm"
 											/>
 											<button
