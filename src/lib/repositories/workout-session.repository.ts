@@ -2,8 +2,8 @@ import { BaseRepository } from './base.repository';
 import type { WorkoutSession } from '$lib/types';
 
 /**
- * Shared select query for workout sessions with related data.
- * Used consistently across all session queries to ensure data shape consistency.
+ * Full select query for workout sessions with all related data.
+ * Used for detail views (workout/[id]) where exercises and sets are fully displayed.
  */
 const SESSION_SELECT = [
 	'id',
@@ -14,6 +14,22 @@ const SESSION_SELECT = [
 	'created_at',
 	'workout_type(id,key,name,icon)',
 	'workout_exercise(id,workout_session_id,exercise_id,name_snapshot,notes,is_completed,order_index,created_at,exercise(exercise_type),workout_set(id,workout_exercise_id,reps,weight,distance,order_index,created_at))'
+].join(',');
+
+/**
+ * Lightweight select query for list/summary views (home, history).
+ * Includes exercise names and set IDs (for count) but omits heavy set data
+ * (reps, weight, distance) to reduce payload size significantly.
+ */
+const SUMMARY_SELECT = [
+	'id',
+	'workout_type_id',
+	'date',
+	'notes',
+	'is_completed',
+	'created_at',
+	'workout_type(id,key,name,icon)',
+	'workout_exercise(id,name_snapshot,order_index,workout_set(id))'
 ].join(',');
 
 type WorkoutSessionInsert = {
@@ -35,8 +51,9 @@ type WorkoutSessionUpdate = {
  */
 export class WorkoutSessionRepository extends BaseRepository {
 	/**
-	 * Get all workout sessions for the current user.
+	 * Get all workout sessions for the current user with full nested data.
 	 * Includes related workout type, exercises, and sets.
+	 * Use for detail views where complete exercise/set data is needed.
 	 */
 	async list(): Promise<WorkoutSession[]> {
 		const userId = await this.getUserId();
@@ -51,6 +68,38 @@ export class WorkoutSessionRepository extends BaseRepository {
 
 		if (error) {
 			console.error('[WorkoutSessionRepository.list] Error:', error);
+			throw error;
+		}
+
+		return (data ?? []) as unknown as WorkoutSession[];
+	}
+
+	/**
+	 * Get workout sessions for the current user with lightweight data.
+	 * Includes workout type and exercise names with set counts, but omits
+	 * heavy set details (reps, weight, distance).
+	 * Use for list/summary views (home page, history page).
+	 *
+	 * @param limit - Optional maximum number of sessions to return.
+	 */
+	async listSummary(limit?: number): Promise<WorkoutSession[]> {
+		const userId = await this.getUserId();
+
+		let query = this.supabase
+			.from('workout_session')
+			.select(SUMMARY_SELECT)
+			.eq('user_id', userId)
+			.order('date', { ascending: false })
+			.order('order_index', { referencedTable: 'workout_exercise', ascending: true });
+
+		if (limit) {
+			query = query.limit(limit);
+		}
+
+		const { data, error } = await query;
+
+		if (error) {
+			console.error('[WorkoutSessionRepository.listSummary] Error:', error);
 			throw error;
 		}
 

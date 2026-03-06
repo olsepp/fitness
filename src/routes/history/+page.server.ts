@@ -7,7 +7,7 @@ export const load: PageServerLoad = async (event) => {
 	const repos = createRepositories(event);
 
 	try {
-		const workouts = await repos.workoutSessions.list();
+		const workouts = await repos.workoutSessions.listSummary();
 		return { workouts };
 	} catch (error) {
 		console.error('Error loading workouts:', error);
