@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { type Handle, redirect } from '@sveltejs/kit';
+import type { Session } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY } from '$env/static/public';
 
 export const handle: Handle = async ({ event, resolve }) => {
@@ -14,18 +15,28 @@ export const handle: Handle = async ({ event, resolve }) => {
 		},
 	});
 
+	// Memoize getSession so repeated calls within the same request
+	// don't trigger additional Supabase auth roundtrips.
+	let cachedSession: Session | null | undefined = undefined;
+
 	event.locals.getSession = async () => {
+		if (cachedSession !== undefined) return cachedSession;
+
 		const {
 			data: { user },
 		} = await event.locals.supabase.auth.getUser();
 
-		if (!user) return null;
+		if (!user) {
+			cachedSession = null;
+			return null;
+		}
 
 		const {
 			data: { session },
 		} = await event.locals.supabase.auth.getSession();
 
-		return session ?? null;
+		cachedSession = session ?? null;
+		return cachedSession;
 	};
 
 	// Protect all routes except public ones
@@ -40,6 +51,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 		if (!session) {
 			throw redirect(303, '/sign-in');
 		}
+		// Cache userId on locals so repositories can skip auth calls entirely
+		event.locals.userId = session.user.id;
 	}
 
 	const response = await resolve(event, {

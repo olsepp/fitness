@@ -2,11 +2,8 @@ import type { PageServerLoad } from './$types';
 import { createRepositories } from '$lib/repositories';
 
 export const load: PageServerLoad = async (event) => {
-	const session = await event.locals.getSession();
-	if (!session) {
-		return { workouts: [] };
-	}
-
+	// Auth is already enforced by the hook for protected routes.
+	// No need to call getSession() again here.
 	const repos = createRepositories(event);
 
 	try {

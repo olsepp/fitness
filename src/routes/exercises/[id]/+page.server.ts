@@ -3,11 +3,7 @@ import type { PageServerLoad } from './$types';
 import { createRepositories } from '$lib/repositories';
 
 export const load: PageServerLoad = async (event) => {
-	const session = await event.locals.getSession();
-	if (!session) {
-		return { exercise: null };
-	}
-
+	// Auth is already enforced by the hook for protected routes.
 	const { id } = event.params;
 	if (!id) {
 		return { exercise: null };
@@ -21,11 +17,7 @@ export const load: PageServerLoad = async (event) => {
 
 export const actions: Actions = {
 	update: async (event) => {
-		const session = await event.locals.getSession();
-		if (!session) {
-			return fail(401, { error: 'Not authenticated', action: 'update' });
-		}
-
+		// Auth is already enforced by the hook for protected routes.
 		const { id } = event.params;
 		if (!id) {
 			return fail(400, { error: 'Missing exercise id', action: 'update' });
@@ -78,11 +70,7 @@ export const actions: Actions = {
 	},
 
 	delete: async (event) => {
-		const session = await event.locals.getSession();
-		if (!session) {
-			return { success: false, error: 'Not authenticated' };
-		}
-
+		// Auth is already enforced by the hook for protected routes.
 		const { id } = event.params;
 		if (!id) {
 			return { success: false, error: 'Missing exercise id' };

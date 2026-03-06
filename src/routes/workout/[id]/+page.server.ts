@@ -3,15 +3,7 @@ import type { PageServerLoad } from './$types';
 import { createRepositories } from '$lib/repositories';
 
 export const load: PageServerLoad = async (event) => {
-	const session = await event.locals.getSession();
-	if (!session) {
-		return {
-			workout: null,
-			workoutTypes: [],
-			availableExercises: []
-		};
-	}
-
+	// Auth is already enforced by the hook for protected routes.
 	const repos = createRepositories(event);
 	const { params } = event;
 
@@ -57,11 +49,7 @@ export const load: PageServerLoad = async (event) => {
 
 export const actions: Actions = {
 	'add-exercise': async (event) => {
-		const session = await event.locals.getSession();
-		if (!session) {
-			return fail(401, { error: 'Not authenticated' });
-		}
-
+		// Auth is already enforced by the hook for protected routes.
 		const formData = await event.request.formData();
 		const workoutId = (formData.get('workout_id') as string | null) ?? '';
 		const exerciseId = (formData.get('exercise_id') as string | null) ?? '';
@@ -97,11 +85,7 @@ export const actions: Actions = {
 	},
 
 	'create-exercise': async (event) => {
-		const session = await event.locals.getSession();
-		if (!session) {
-			return fail(401, { error: 'Not authenticated' });
-		}
-
+		// Auth is already enforced by the hook for protected routes.
 		const formData = await event.request.formData();
 		const workoutId = (formData.get('workout_id') as string | null) ?? '';
 		const name = (formData.get('name') as string | null) ?? '';
@@ -153,11 +137,7 @@ export const actions: Actions = {
 	},
 
 	'add-set': async (event) => {
-		const session = await event.locals.getSession();
-		if (!session) {
-			return fail(401, { error: 'Not authenticated' });
-		}
-
+		// Auth is already enforced by the hook for protected routes.
 		const formData = await event.request.formData();
 		const workoutExerciseId = (formData.get('workout_exercise_id') as string | null) ?? '';
 		const repsRaw = formData.get('reps');
@@ -205,11 +185,7 @@ export const actions: Actions = {
 	},
 
 	'update-set': async (event) => {
-		const session = await event.locals.getSession();
-		if (!session) {
-			return fail(401, { error: 'Not authenticated' });
-		}
-
+		// Auth is already enforced by the hook for protected routes.
 		const formData = await event.request.formData();
 		const setId = (formData.get('set_id') as string | null) ?? '';
 		const repsRaw = formData.get('reps');
@@ -248,11 +224,7 @@ export const actions: Actions = {
 	},
 
 	'toggle-workout-complete': async (event) => {
-		const session = await event.locals.getSession();
-		if (!session) {
-			return fail(401, { error: 'Not authenticated' });
-		}
-
+		// Auth is already enforced by the hook for protected routes.
 		const formData = await event.request.formData();
 		const workoutId = (formData.get('workout_id') as string | null) ?? '';
 		const isCompleted = formData.get('is_completed') === 'true';
@@ -273,11 +245,7 @@ export const actions: Actions = {
 	},
 
 	'toggle-exercise-complete': async (event) => {
-		const session = await event.locals.getSession();
-		if (!session) {
-			return fail(401, { error: 'Not authenticated' });
-		}
-
+		// Auth is already enforced by the hook for protected routes.
 		const formData = await event.request.formData();
 		const workoutExerciseId = (formData.get('workout_exercise_id') as string | null) ?? '';
 		const isCompleted = formData.get('is_completed') === 'true';
@@ -298,11 +266,7 @@ export const actions: Actions = {
 	},
 
 	'save-workout': async (event) => {
-		const session = await event.locals.getSession();
-		if (!session) {
-			return fail(401, { error: 'Not authenticated' });
-		}
-
+		// Auth is already enforced by the hook for protected routes.
 		const formData = await event.request.formData();
 		const workoutId = (formData.get('workout_id') as string | null) ?? '';
 		const workoutTypeId = (formData.get('workout_type_id') as string | null) ?? '';
@@ -358,11 +322,7 @@ export const actions: Actions = {
 	},
 
 	'delete-workout': async (event) => {
-		const session = await event.locals.getSession();
-		if (!session) {
-			return fail(401, { error: 'Not authenticated' });
-		}
-
+		// Auth is already enforced by the hook for protected routes.
 		const formData = await event.request.formData();
 		const workoutId = (formData.get('workout_id') as string | null) ?? '';
 

@@ -3,11 +3,7 @@ import type { PageServerLoad } from './$types';
 import { createRepositories } from '$lib/repositories';
 
 export const load: PageServerLoad = async (event) => {
-	const session = await event.locals.getSession();
-	if (!session) {
-		return { workouts: [] };
-	}
-
+	// Auth is already enforced by the hook for protected routes.
 	const repos = createRepositories(event);
 
 	try {
@@ -21,11 +17,7 @@ export const load: PageServerLoad = async (event) => {
 
 export const actions: Actions = {
 	'toggle-complete': async (event) => {
-		const session = await event.locals.getSession();
-		if (!session) {
-			return fail(401, { error: 'Not authenticated' });
-		}
-
+		// Auth is already enforced by the hook; userId is on event.locals.
 		const formData = await event.request.formData();
 		const workoutId = (formData.get('workout_id') as string | null) ?? '';
 		const isCompleted = formData.get('is_completed') === 'true';

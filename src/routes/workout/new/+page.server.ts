@@ -3,11 +3,7 @@ import type { PageServerLoad } from './$types';
 import { createRepositories } from '$lib/repositories';
 
 export const load: PageServerLoad = async (event) => {
-	const session = await event.locals.getSession();
-	if (!session) {
-		return { workoutTypes: [], exercises: [] };
-	}
-
+	// Auth is already enforced by the hook for protected routes.
 	const repos = createRepositories(event);
 
 	try {
@@ -25,18 +21,11 @@ export const load: PageServerLoad = async (event) => {
 
 export const actions: Actions = {
 	'create-exercise': async (event) => {
-		const session = await event.locals.getSession();
+		// Auth is already enforced by the hook for protected routes.
 		const formData = await event.request.formData();
 		const name = (formData.get('exercise_name') as string | null) ?? '';
 		const notes = (formData.get('exercise_notes') as string | null) ?? '';
 		const exerciseTypeRaw = (formData.get('exercise_type') as string | null) ?? 'strength';
-
-		if (!session) {
-			return fail(401, {
-				error: 'Not authenticated',
-				values: { name, notes }
-			});
-		}
 
 		if (!name.trim()) {
 			return fail(400, {
@@ -68,16 +57,12 @@ export const actions: Actions = {
 	},
 
 	'create-workout': async (event) => {
-		const session = await event.locals.getSession();
+		// Auth is already enforced by the hook for protected routes.
 		const formData = await event.request.formData();
 		const workoutTypeId = (formData.get('workout_type_id') as string | null) ?? '';
 		const date = (formData.get('date') as string | null) ?? '';
 		const notes = (formData.get('notes') as string | null) ?? '';
 		const exercisesRaw = (formData.get('exercises') as string | null) ?? '[]';
-
-		if (!session) {
-			return fail(401, { error: 'Not authenticated' });
-		}
 
 		if (!workoutTypeId) {
 			return fail(400, { error: 'Please select a workout type.' });

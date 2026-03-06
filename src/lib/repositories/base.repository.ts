@@ -39,9 +39,18 @@ export abstract class BaseRepository {
 
 	/**
 	 * Get the current user's ID, fetching it if not already cached.
+	 * Prefers the userId cached on event.locals by the auth hook to avoid
+	 * additional auth roundtrips in serverless environments.
 	 */
 	protected async getUserId(): Promise<string> {
 		if (this.userId) return this.userId;
+
+		// Use pre-resolved userId from the hook if available
+		if (this.event.locals.userId) {
+			this.userId = this.event.locals.userId;
+			return this.userId;
+		}
+
 		const user = await this.requireUser();
 		return user.id;
 	}

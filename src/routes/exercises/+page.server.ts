@@ -3,11 +3,7 @@ import type { PageServerLoad } from './$types';
 import { createRepositories } from '$lib/repositories';
 
 export const load: PageServerLoad = async (event) => {
-	const session = await event.locals.getSession();
-	if (!session) {
-		return { exercises: [] };
-	}
-
+	// Auth is already enforced by the hook for protected routes.
 	const repos = createRepositories(event);
 
 	try {
@@ -21,7 +17,7 @@ export const load: PageServerLoad = async (event) => {
 
 export const actions: Actions = {
 	create: async (event) => {
-		const session = await event.locals.getSession();
+		// Auth is already enforced by the hook for protected routes.
 		const formData = await event.request.formData();
 		const name = (formData.get('name') as string | null) ?? '';
 		const notes = (formData.get('notes') as string | null) ?? '';
@@ -29,14 +25,6 @@ export const actions: Actions = {
 
 		const validTypes = ['strength', 'cardio'];
 		const exerciseType = validTypes.includes(exerciseTypeRaw || '') ? exerciseTypeRaw as 'strength' | 'cardio' : 'strength';
-
-		if (!session) {
-			return fail(401, {
-				error: 'Not authenticated',
-				action: 'create',
-				values: { name, notes }
-			});
-		}
 
 		if (!name.trim()) {
 			return fail(400, {
@@ -67,13 +55,9 @@ export const actions: Actions = {
 	},
 
 	delete: async (event) => {
-		const session = await event.locals.getSession();
+		// Auth is already enforced by the hook for protected routes.
 		const formData = await event.request.formData();
 		const id = (formData.get('id') as string | null) ?? '';
-
-		if (!session) {
-			return fail(401, { error: 'Not authenticated', action: 'delete', id });
-		}
 
 		if (!id) {
 			return fail(400, { error: 'Exercise id is required', action: 'delete' });
